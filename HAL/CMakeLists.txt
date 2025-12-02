@@ -62,6 +62,9 @@ add_executable(${CMAKE_PROJECT_NAME}
 
         User/Drivers/Src/crsf.c
         User/Drivers/Tests/crsf_protocol_test.c
+
+        User/Drivers/Tests/ssd1306_test.c
+        User/Drivers/Src/ssd1306_tests.c
 )
 
 # Add STM32CubeMX generated sources
