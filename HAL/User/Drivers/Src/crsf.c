@@ -1,13 +1,16 @@
 #include "crsf.h"
 #include <string.h>
-// --- 配置宏 ---
-#define CRSF_TIME_NEEDED_PER_FRAME_US   1750 // 一帧传输所需最大时间
+
+// --- Configuration Macros ---
+#define CRSF_TIME_NEEDED_PER_FRAME_US   1750 // Max time needed for one frame transmission
 #define CRSF_BAUDRATE                   420000
-// --- 协议常量定义 (如果你没有 crsf_protocol.h) ---
+
+// --- Protocol Constants Definition (if you don't have crsf_protocol.h) ---
 #define CRSF_SYNC_BYTE 0xC8
 #define CRSF_FRAMETYPE_RC_CHANNELS_PACKED 0x16
 #define CRSF_ADDRESS_FLIGHT_CONTROLLER 0xC8
-// 内部结构体定义
+
+// Internal Structure Definitions
 typedef struct {
     unsigned int chan0 : 11;
     unsigned int chan1 : 11;
@@ -26,23 +29,27 @@ typedef struct {
     unsigned int chan14 : 11;
     unsigned int chan15 : 11;
 } __attribute__ ((__packed__)) crsfPayloadRcChannelsPacked_t;
+
 typedef struct {
     uint8_t deviceAddress;
     uint8_t frameLength;
     uint8_t type;
     uint8_t payload[CRSF_FRAME_SIZE_MAX - 4];
 } crsfFrameDef_t;
+
 typedef union {
     uint8_t bytes[CRSF_FRAME_SIZE_MAX];
     crsfFrameDef_t frame;
 } crsfFrame_t;
-// --- 静态变量 ---
+
+// --- Static Variables ---
 static crsfFrame_t crsfFrame;
 static uint8_t crsfFramePosition = 0;
 static uint32_t crsfFrameStartAtUs = 0;
 static uint16_t crsfChannels[CRSF_CHANNEL_COUNT];
 static uint32_t lastFrameTimeUs = 0;
-// --- 内部函数: CRC8 计算 ---
+
+// --- Internal Function: CRC8 Calculation ---
 static uint8_t crc8_calc(uint8_t crc, unsigned char a) {
     crc ^= a;
     for (int ii = 0; ii < 8; ++ii) {
@@ -54,52 +61,62 @@ static uint8_t crc8_calc(uint8_t crc, unsigned char a) {
     }
     return crc;
 }
-// --- 内部函数: 转换通道值 ---
+
+// --- Internal Function: Scale Channel Value ---
 static uint16_t crsf_scale_channel(uint16_t raw) {
-    // 11bit (0-2047) -> PWM (1000-2000) 的线性映射
-    // CRSF 协议: 172 -> 988us, 1811 -> 2012us
+    // Linear mapping: 11bit (0-2047) -> PWM (1000-2000)
+    // CRSF Protocol: 172 -> 988us, 1811 -> 2012us
     return (uint16_t)((raw * 0.62477120195241f) + 881);
 }
-// --- 外部接口实现 ---
+
+// --- External Interface Implementation ---
+
 void crsf_init(void) {
     crsfFramePosition = 0;
     memset(crsfChannels, 0, sizeof(crsfChannels));
 }
+
 void crsf_process_byte(uint8_t c, uint32_t time_us) {
-    // 1. 超时检测：如果字节间隔过长，重置接收索引
+    // 1. Timeout detection: if byte interval is too long, reset receive index
     if ((time_us - crsfFrameStartAtUs) > CRSF_TIME_NEEDED_PER_FRAME_US) {
         crsfFramePosition = 0;
     }
+
     if (crsfFramePosition == 0) {
         crsfFrameStartAtUs = time_us;
     }
-    // 2. 防止缓冲区溢出
+
+    // 2. Prevent buffer overflow
     if (crsfFramePosition < CRSF_FRAME_SIZE_MAX) {
         crsfFrame.bytes[crsfFramePosition++] = c;
-        // 3. 只有收到至少3个字节(Addr, Len, Type)才能判断帧长
+
+        // 3. Only determine frame length after receiving at least 3 bytes (Addr, Len, Type)
         if (crsfFramePosition > 2) {
-            // frameLength 字段的值不包含 Address(1) 和 FrameLength(1) 本身
+            // frameLength field value does not include Address(1) and FrameLength(1) itself
             uint8_t totalFrameLen = crsfFrame.frame.frameLength + 2;
-            // 4. 接收完整一帧
+
+            // 4. Receive complete frame
             if (crsfFramePosition >= totalFrameLen) {
-                crsfFramePosition = 0; // 重置，准备下一帧
-                // 5. CRC 校验
-                // CRC 范围：从 Type 开始 到 Payload 结束
+                crsfFramePosition = 0; // Reset, prepare for next frame
+
+                // 5. CRC Check
+                // CRC Range: From Type to end of Payload
                 uint8_t calculatedCRC = 0;
                 calculatedCRC = crc8_calc(calculatedCRC, crsfFrame.frame.type);
 
-                // Payload 长度 = 总长 - Addr(1) - Len(1) - Type(1) - CRC(1) = frameLength - 2
+                // Payload Length = Total Length - Addr(1) - Len(1) - Type(1) - CRC(1) = frameLength - 2
                 int payloadLen = crsfFrame.frame.frameLength - 2;
                 for (int i = 0; i < payloadLen; i++) {
                     calculatedCRC = crc8_calc(calculatedCRC, crsfFrame.frame.payload[i]);
                 }
-                // 比较 CRC
+
+                // Compare CRC
                 if (calculatedCRC == crsfFrame.bytes[totalFrameLen - 1]) {
-                    // 6. 校验通过，解析 RC 包
+                    // 6. Check passed, parse RC packet
                     if (crsfFrame.frame.deviceAddress == CRSF_ADDRESS_FLIGHT_CONTROLLER &&
                         crsfFrame.frame.type == CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {
 
-                        lastFrameTimeUs = time_us; // 更新最后活跃时间
+                        lastFrameTimeUs = time_us; // Update last active time
 
                         const crsfPayloadRcChannelsPacked_t* rc = (const crsfPayloadRcChannelsPacked_t*)crsfFrame.frame.payload;
 
@@ -111,19 +128,21 @@ void crsf_process_byte(uint8_t c, uint32_t time_us) {
                         crsfChannels[5] = crsf_scale_channel(rc->chan5);
                         crsfChannels[6] = crsf_scale_channel(rc->chan6);
                         crsfChannels[7] = crsf_scale_channel(rc->chan7);
-                        // ... 其他通道同理
+                        // ... other channels similarly
                     }
                 }
             }
         }
     }
 }
+
 uint16_t crsf_get_channel(int channel) {
     if (channel < 0 || channel >= CRSF_CHANNEL_COUNT) return 0;
     return crsfChannels[channel];
 }
+
 int crsf_is_connected(void) {
-    // 这里假设如果 500ms 没收到数据就算断开，你需要提供一个获取当前时间的函数
-    // 或者你在外部自己判断 lastFrameTimeUs
-    return 1; // 简单返回1，实际使用建议判断时间差
+    // Assuming disconnected if no data received for 500ms, you need to provide a function to get current time
+    // Or check lastFrameTimeUs externally
+    return 1; // Simply return 1, actual usage suggests checking time difference
 }

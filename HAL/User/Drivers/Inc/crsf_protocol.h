@@ -7,17 +7,17 @@
 #define CRSF_SYNC_BYTE 0xC8
 #define CRSF_FRAME_SIZE_MAX 64
 
-// 帧类型
+// Frame Types
 #define CRSF_FRAMETYPE_RC_CHANNELS_PACKED 0x16
 #define CRSF_FRAMETYPE_LINK_STATISTICS 0x14
 
-// 设备地址
+// Device Addresses
 #define CRSF_ADDRESS_FLIGHT_CONTROLLER 0xC8
 
-// 通道定义
+// Channel Definitions
 #define CRSF_CHANNEL_COUNT 16
 
-// 紧凑的通道数据结构 (11 bits per channel)
+// Packed Channel Data Structure (11 bits per channel)
 typedef struct {
     unsigned int chan0 : 11;
     unsigned int chan1 : 11;
@@ -37,7 +37,7 @@ typedef struct {
     unsigned int chan15 : 11;
 } __attribute__ ((__packed__)) crsfPayloadRcChannelsPacked_t;
 
-// 通用帧结构
+// General Frame Structure
 typedef struct {
     uint8_t deviceAddress;
     uint8_t frameLength;
@@ -49,4 +49,5 @@ typedef union {
     uint8_t bytes[CRSF_FRAME_SIZE_MAX];
     crsfFrameDef_t frame;
 } crsfFrame_t;
+
 #endif
