@@ -8,8 +8,8 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USE_UART1
-// #define USE_UART2
+// #define USE_UART1
+#define USE_UART2
 // #define USE_UART3
 // #define USE_UART4
 // #define USE_UART5
