@@ -59,6 +59,9 @@ add_executable(${CMAKE_PROJECT_NAME}
 
         User/Drivers/Src/uart_driver.c
         User/Drivers/Tests/uart_driver_test.c
+
+        User/Drivers/Src/crsf.c
+        User/App/crsf/app.c
 )
 
 # Add STM32CubeMX generated sources

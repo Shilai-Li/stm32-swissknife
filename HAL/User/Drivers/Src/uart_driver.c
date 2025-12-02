@@ -11,43 +11,27 @@ static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {
 #if defined USE_UART1
     &huart1,
-#else
-    NULL,
 #endif
 #if defined USE_UART2
     &huart2,
-#else
-    NULL,
 #endif
 #if defined USE_UART3
     &huart3,
-#else
-    NULL,
 #endif
 #if defined USE_UART4
     &huart4,
-#else
-    NULL,
 #endif
 #if defined USE_UART5
     &huart5,
-#else
-    NULL,
 #endif
 #if defined USE_UART6
     &huart6,
-#else
-    NULL,
 #endif
 #if defined USE_UART7
     &huart7,
-#else
-    NULL,
 #endif
 #if defined USE_UART8
     &huart8,
-#else
-    NULL,
 #endif
 };
 
