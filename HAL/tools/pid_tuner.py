@@ -29,7 +29,7 @@ class PIDTuner:
         self.is_connected = False
         
         # Variables
-        self.kp = tk.DoubleVar(value=0.5)
+        self.kp = tk.DoubleVar(value=0.0)
         self.ki = tk.DoubleVar(value=0.0)
         self.kd = tk.DoubleVar(value=0.0)
         self.target = tk.IntVar(value=0)

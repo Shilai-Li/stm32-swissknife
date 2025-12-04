@@ -12,7 +12,7 @@ extern "C" {
  * @brief Select the timer to use for the delay driver.
  * Options: 1 (TIM1), 2 (TIM2), 3 (TIM3), 4 (TIM4)
  */
-#define USE_DELAY_TIM 0
+#define USE_DELAY_TIM 3
 
 #if USE_DELAY_TIM == 1
     extern TIM_HandleTypeDef    htim1;
@@ -22,6 +22,7 @@ extern "C" {
     #define DELAY_TIM_INSTANCE  TIM2
 #elif USE_DELAY_TIM == 3
     extern TIM_HandleTypeDef    htim3;
+    #define DELAY_TIM_HANDLE htim3
     #define DELAY_TIM_INSTANCE  TIM3
 #elif USE_DELAY_TIM == 4
     extern TIM_HandleTypeDef    htim4;

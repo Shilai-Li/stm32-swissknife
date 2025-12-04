@@ -7,9 +7,9 @@
 #include "usart.h"
 
 /* PID Tuning Globals */
-volatile float tune_Kp = 0.5f;   // 默认P参数
+volatile float tune_Kp = 0.02f;  // 极低 P 增益
 volatile float tune_Ki = 0.0f;
-volatile float tune_Kd = 0.05f;  // 少量微分减少震荡
+volatile float tune_Kd = 0.1f;   // 强 D 增益抑制震荡
 volatile int32_t tune_Target = 0;
 uint8_t pid_rx_buf[64];
 
@@ -56,6 +56,23 @@ void User_Entry(void)
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
+    // 初始化 GPIO (DIR: PB13, EN: PC15)
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    // PB13 - DIR
+    GPIO_InitStruct.Pin = GPIO_PIN_13;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // PC15 - EN
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
     /* 填充电机配置 */
     myMotor.htim = &htim1;
     myMotor.channel = TIM_CHANNEL_1;
@@ -78,9 +95,11 @@ void User_Entry(void)
     // PID 参数配置
     PID_Controller_t posPID;
     PID_Init(&posPID, tune_Kp, tune_Ki, tune_Kd, 95.0f, 100.0f, 10.0f);
+    posPID.lpfBeta = 0.1f; // 设置微分滤波器系数
 
     int32_t target_pos = 0; // 目标位置 (脉冲数)
     int32_t current_pos = 0;
+    float filtered_pos = 0.0f;  // 滤波后的位置
     float control_output = 0.0f;
     uint32_t last_time = HAL_GetTick();
     uint32_t print_time = 0;
@@ -108,9 +127,13 @@ void User_Entry(void)
 
             // 获取当前位置
             current_pos = Motor_GetEncoderCount(&myMotor);
+            
+            // 低通滤波减少编码器噪声引起的抖动
+            const float FILTER_ALPHA = 1.0f;  // 取消滤波 (1.0 = 不滤波)，消除滞后
+            filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
 
-            // 计算 PID
-            control_output = PID_Compute(&posPID, (float)target_pos, (float)current_pos, dt);
+            // 计算 PID（使用滤波后的位置）
+            control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, dt);
 
             // 应用控制量
             // 方向映射：1=正转，0=反转

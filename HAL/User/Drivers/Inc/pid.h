@@ -8,7 +8,10 @@ typedef struct {
     float Ki;
     float Kd;
     float prevError;
+    float prevMeasurement; // 上一次的测量值 (用于微分)
     float integral;
+    float dTerm;         // 滤波后的微分项
+    float lpfBeta;       // 微分项低通滤波系数 (0-1, 1=不滤波)
     float outputLimit;   // 输出限幅 (绝对值)
     float integralLimit; // 积分限幅 (绝对值)
     float deadZone;      // 死区 (误差绝对值小于此值时输出为0)

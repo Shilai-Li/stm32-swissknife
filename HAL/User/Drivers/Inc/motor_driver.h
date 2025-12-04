@@ -14,6 +14,8 @@ typedef struct {
     uint32_t pwm_period;        // PWM周期，根据定时器配置
     // 编码器接口 (使用硬件定时器编码器模式)
     TIM_HandleTypeDef *htim_enc; // 编码器定时器句柄 (如 TIM2)
+    int32_t total_count;         // 总计数值 (处理溢出后)
+    uint16_t last_counter;       // 上一次读取的定时器值
 } Motor_Handle_t;
 
 // --- 函数声明 ---

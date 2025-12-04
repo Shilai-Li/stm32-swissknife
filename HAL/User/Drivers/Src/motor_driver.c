@@ -8,6 +8,9 @@ void Motor_Init(Motor_Handle_t *motor) {
     HAL_GPIO_WritePin(motor->dir_port, motor->dir_pin, GPIO_PIN_SET); // 假设高电平是正转
     // 启动PWM基准信号 (TIM1 PWM)
     HAL_TIM_PWM_Start(motor->htim, motor->channel);
+    
+    motor->total_count = 0;
+    motor->last_counter = 0;
 }
 
 void Motor_Encoder_Init(Motor_Handle_t *motor) {
@@ -16,14 +19,23 @@ void Motor_Encoder_Init(Motor_Handle_t *motor) {
 }
 
 int32_t Motor_GetEncoderCount(Motor_Handle_t *motor) {
-    // 直接读取定时器计数器
-    // 强制转换为 int16_t 以处理溢出回绕，得到相对 0 的正负值
-    // 注意：STM32F1 的 TIM2 是 16 位的
-    return (int16_t)__HAL_TIM_GET_COUNTER(motor->htim_enc);
+    // 读取当前定时器值
+    uint16_t current_counter = __HAL_TIM_GET_COUNTER(motor->htim_enc);
+    
+    // 计算差值 (注意是 int16_t，利用溢出特性自动处理回绕)
+    int16_t diff = (int16_t)(current_counter - motor->last_counter);
+    
+    // 更新总计数
+    motor->total_count += diff;
+    motor->last_counter = current_counter;
+    
+    return motor->total_count;
 }
 
 void Motor_ResetEncoderCount(Motor_Handle_t *motor, int32_t value) {
-    __HAL_TIM_SET_COUNTER(motor->htim_enc, value);
+    __HAL_TIM_SET_COUNTER(motor->htim_enc, 0); // 硬件计数器清零
+    motor->last_counter = 0;
+    motor->total_count = value; // 逻辑计数器设为目标值
 }
 
 void Motor_Start(Motor_Handle_t *motor) {
@@ -49,10 +61,10 @@ void Motor_SetSpeed(Motor_Handle_t *motor, uint8_t duty_percent) {
 
 void Motor_SetDirection(Motor_Handle_t *motor, uint8_t direction) {
     if (direction == 1) {
-        // 正转：黄色线高电平 (或悬空/上拉)
+        // 正转：恢复为高电平
         HAL_GPIO_WritePin(motor->dir_port, motor->dir_pin, GPIO_PIN_SET);
     } else {
-        // 反转：黄色线低电平 (接地)
+        // 反转：恢复为低电平
         HAL_GPIO_WritePin(motor->dir_port, motor->dir_pin, GPIO_PIN_RESET);
     }
 }
