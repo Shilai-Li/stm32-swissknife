@@ -1,5 +1,3 @@
-#if 0
-
 #include <stdio.h>
 
 #include "uart_driver.h"
@@ -54,5 +52,3 @@ void User_Entry(void)
         }
     }
 }
-
-#endif
