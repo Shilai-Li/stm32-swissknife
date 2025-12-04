@@ -58,12 +58,13 @@ void Delay_Init(void)
 
 /**
  * @brief This callback is called automatically by HAL on timer overflow (update event).
+ *        Renamed to avoid conflict with main application.
  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void Delay_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == DELAY_TIM_INSTANCE)
     {
-        _micros_acc += 65536UL;  // 16-bit period = 65536 microseconds each overflow (1us per tick)
+        _micros_acc += 1000UL;  // 1ms period = 1000 microseconds (assuming Period=999)
     }
 }
 

@@ -5,19 +5,31 @@
 #include <stdio.h>
 #include <string.h>
 #include "usart.h"
+#include "delay_driver.h"
 
 /* PID Tuning Globals */
-volatile float tune_Kp = 0.02f;  // 极低 P 增益
+volatile float tune_Kp = 0.02f;
 volatile float tune_Ki = 0.0f;
-volatile float tune_Kd = 0.1f;   // 强 D 增益抑制震荡
+volatile float tune_Kd = 0.1f;
 volatile int32_t tune_Target = 0;
 uint8_t pid_rx_buf[64];
+
+/* Global Control Variables (for ISR) */
+Motor_Handle_t myMotor;
+PID_Controller_t posPID;
+volatile int32_t target_pos = 0;
+volatile int32_t current_pos = 0;
+volatile float filtered_pos = 0.0f;
+volatile float control_output = 0.0f;
+
+/* External Handles */
+extern TIM_HandleTypeDef htim2; // Encoder
+extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART2) {
         // Search for header 0xAA 0xBB
-        // Packet: AA BB [Kp 4] [Ki 4] [Kd 4] [Target 4] [Sum 1] = 19 bytes
         for (int i = 0; i <= (int)Size - 19; i++) {
             if (pid_rx_buf[i] == 0xAA && pid_rx_buf[i+1] == 0xBB) {
                 uint8_t *data = &pid_rx_buf[i+2];
@@ -36,29 +48,59 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     }
 }
 
-/* 定义电机对象 */
-Motor_Handle_t myMotor;
+/* 1ms Timer Interrupt Callback */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    // Call Delay Driver Callback (for micros() support)
+    Delay_TIM_PeriodElapsedCallback(htim);
+
+    if (htim->Instance == TIM3) {
+        // Update PID params
+        posPID.Kp = tune_Kp;
+        posPID.Ki = tune_Ki;
+        posPID.Kd = tune_Kd;
+        
+        // Manual Target Override
+        if (tune_Target != 0) {
+            target_pos = tune_Target;
+        }
+
+        // Read Encoder
+        current_pos = Motor_GetEncoderCount(&myMotor);
+        
+        // Filter Position (Optional, kept 1.0 for now)
+        const float FILTER_ALPHA = 1.0f;
+        filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
+
+        // Compute PID (dt = 0.001s)
+        control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, 0.001f);
+
+        // Apply Output
+        if (control_output >= 0) {
+            Motor_SetDirection(&myMotor, 1);
+            Motor_SetSpeed(&myMotor, (uint8_t)control_output);
+        } else {
+            Motor_SetDirection(&myMotor, 0);
+            Motor_SetSpeed(&myMotor, (uint8_t)(-control_output));
+        }
+    }
+}
 
 void User_Entry(void)
 {
-    // 初始化 UART 用于调试打印
     UART_Init();
     
-    // Switch UART2 to DMA Idle Receive for Tuning
     extern UART_HandleTypeDef huart2;
     HAL_UART_AbortReceive(&huart2);
     HAL_UARTEx_ReceiveToIdle_DMA(&huart2, pid_rx_buf, sizeof(pid_rx_buf));
 
-    UART_Debug_Printf("=== Step Response Test Mode ===\r\n");
-    UART_Debug_Printf("Target: 0 <-> 500 (every 1 second)\r\n");
+    UART_Debug_Printf("=== PID 1ms Interrupt Mode ===\r\n");
 
-    // 强制开启 GPIO 时钟
+    // GPIO Init
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
-    // 初始化 GPIO (DIR: PB13, EN: PC15)
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-
     // PB13 - DIR
     GPIO_InitStruct.Pin = GPIO_PIN_13;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -73,7 +115,7 @@ void User_Entry(void)
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    /* 填充电机配置 */
+    // Motor Config
     myMotor.htim = &htim1;
     myMotor.channel = TIM_CHANNEL_1;
     myMotor.en_port = GPIOC;
@@ -81,79 +123,32 @@ void User_Entry(void)
     myMotor.dir_port = GPIOB;
     myMotor.dir_pin = GPIO_PIN_13;
     myMotor.pwm_period = 99;
-
-    // 编码器配置 (TIM2)
-    extern TIM_HandleTypeDef htim2;
     myMotor.htim_enc = &htim2;
 
-    /* 初始化并启动 */
     Motor_Init(&myMotor);
     Motor_Encoder_Init(&myMotor);
-    Motor_ResetEncoderCount(&myMotor, 0); // 确保上电时为0
+    Motor_ResetEncoderCount(&myMotor, 0);
     Motor_Start(&myMotor);
 
-    // PID 参数配置
-    PID_Controller_t posPID;
+    // PID Init
     PID_Init(&posPID, tune_Kp, tune_Ki, tune_Kd, 95.0f, 100.0f, 10.0f);
-    posPID.lpfBeta = 0.1f; // 设置微分滤波器系数
+    posPID.lpfBeta = 0.1f;
 
-    int32_t target_pos = 0; // 目标位置 (脉冲数)
-    int32_t current_pos = 0;
-    float filtered_pos = 0.0f;  // 滤波后的位置
-    float control_output = 0.0f;
-    uint32_t last_time = HAL_GetTick();
+    // Start 1ms Interrupt
+    HAL_TIM_Base_Start_IT(&htim3);
+
     uint32_t print_time = 0;
-
-    // 阶跃测试
     uint32_t step_change_time = 0;
 
     while (1) {
         uint32_t now = HAL_GetTick();
-        float dt = (now - last_time) / 1000.0f; // 转换为秒
 
-        // 简单的任务调度：10ms 控制周期 (100Hz)
-        if (now - last_time >= 10) {
-            last_time = now;
-
-            // Update PID params from tuning globals (可通过Python调参)
-            posPID.Kp = tune_Kp;
-            posPID.Ki = tune_Ki;
-            posPID.Kd = tune_Kd;
-            
-            // 如果tune_Target不为0，使用Python设置的目标（手动模式）
-            if (tune_Target != 0) {
-                target_pos = tune_Target;
-            }
-
-            // 获取当前位置
-            current_pos = Motor_GetEncoderCount(&myMotor);
-            
-            // 低通滤波减少编码器噪声引起的抖动
-            const float FILTER_ALPHA = 1.0f;  // 取消滤波 (1.0 = 不滤波)，消除滞后
-            filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
-
-            // 计算 PID（使用滤波后的位置）
-            control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, dt);
-
-            // 应用控制量
-            // 方向映射：1=正转，0=反转
-            if (control_output >= 0) {
-                Motor_SetDirection(&myMotor, 1); // 正转
-                Motor_SetSpeed(&myMotor, (uint8_t)control_output);
-            } else {
-                Motor_SetDirection(&myMotor, 0); // 反转
-                Motor_SetSpeed(&myMotor, (uint8_t)(-control_output)); // 取绝对值
-            }
-        }
-
-        // 打印调试信息 (50ms 一次)
+        // Print Debug Info (50ms)
         if (now - print_time >= 50) {
             print_time = now;
-            
             uint32_t raw_cnt = __HAL_TIM_GET_COUNTER(&htim2);
             
             char buf[96];
-            // 修复负数打印格式
             int val_int = (int)control_output;
             int val_dec = (int)((control_output - val_int) * 100);
             if (val_dec < 0) val_dec = -val_dec;
@@ -164,18 +159,15 @@ void User_Entry(void)
             UART_Send(UART_CHANNEL_2, (uint8_t*)buf, strlen(buf));
         }
 
-        // 阶跃信号自动测试 (Step Response Test)
-        // 每1秒切换：0 -> 500 -> 0 -> 500 ...
-        // 只在tune_Target为0时自动切换（自动模式）
+        // Step Response Test (1s interval)
         if (tune_Target == 0 && now - step_change_time > 1000) {
             step_change_time = now;
-            
             if (target_pos == 0) {
-                target_pos = 500;  // 阶跃到500
-                UART_Debug_Printf(">>> Step UP: Target = 500\r\n");
+                target_pos = 500;
+                UART_Debug_Printf(">>> Step UP\r\n");
             } else {
-                target_pos = 0;    // 回到0
-                UART_Debug_Printf(">>> Step DOWN: Target = 0\r\n");
+                target_pos = 0;
+                UART_Debug_Printf(">>> Step DOWN\r\n");
             }
         }
     }

@@ -37,7 +37,9 @@ uint32_t micros(void);
 uint32_t millis(void);
 void Delay_us(uint32_t us);
 void Delay_ms(uint32_t ms);
+void Delay_ms(uint32_t ms);
 void Delay_Test(void);
+void Delay_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 
 #ifdef __cplusplus
 }
