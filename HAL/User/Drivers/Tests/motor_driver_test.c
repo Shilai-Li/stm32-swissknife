@@ -1,5 +1,3 @@
-#if 1
-
 #include "motor_driver.h"
 
 #include "tim.h"
@@ -10,7 +8,7 @@ Motor_Handle_t myMotor;
 void User_Entry(void)
 {
     /* 填充电机配置 */
-    myMotor.htim = &htim2;
+    myMotor.htim = &htim1;
     myMotor.channel = TIM_CHANNEL_1;
     myMotor.en_port = GPIOC;
     myMotor.en_pin = GPIO_PIN_15;
@@ -65,5 +63,3 @@ void User_Entry(void)
     }
 
 }
-
-#endif

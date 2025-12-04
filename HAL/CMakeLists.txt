@@ -44,7 +44,7 @@ add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(User/Drivers)
 
 # Test Case Selection
-set(TEST_CASE "CRSF" CACHE STRING "Select which test to run (CRSF, UART, BUZZER, DELAY, DHT11, KEY, LED, MOTOR, SSD1306, SSD1306_CUSTOM)")
+set(TEST_CASE "MOTOR" CACHE STRING "Select which test to run (CRSF, UART, BUZZER, DELAY, DHT11, KEY, LED, MOTOR, SSD1306, SSD1306_CUSTOM)")
 message("Selected Test Case: ${TEST_CASE}")
 
 if(TEST_CASE STREQUAL "CRSF")

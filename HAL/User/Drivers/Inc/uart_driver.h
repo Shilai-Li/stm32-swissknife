@@ -8,7 +8,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USE_UART1
+// #define USE_UART1
 #define USE_UART2
 // #define USE_UART3
 // #define USE_UART4
@@ -53,7 +53,7 @@ typedef enum {
 #endif
 
 #ifndef UART_DEBUG_CHANNEL
-#define UART_DEBUG_CHANNEL UART_CHANNEL_1
+#define UART_DEBUG_CHANNEL UART_CHANNEL_2
 #endif
 
 typedef struct {
@@ -73,7 +73,6 @@ uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);
 bool UART_Receive(UART_Channel channel, uint8_t *out, uint32_t timeout_ms);
 void UART_Debug_Printf(const char *fmt, ...);
-void UART_Test(void);
 
 #ifdef __cplusplus
 }

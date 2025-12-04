@@ -155,28 +155,3 @@ void UART_Debug_Printf(const char *fmt, ...)
     if (len > 0)
         UART_Send(UART_DEBUG_CHANNEL, (uint8_t *)buffer, len);
 }
-
-void UART_Test(void)
-{
-    UART_Init();
-
-    UART_Debug_Printf("System initialized successfully.\r\n");
-
-    uint8_t rx_data;
-
-    while (1)
-    {
-        UART_Debug_Printf("Heartbeat: %lu ms\r\n", HAL_GetTick());
-        HAL_Delay(1000);
-
-        if (UART_Available(UART_CHANNEL_1))
-        {
-            if (UART_Read(UART_CHANNEL_1, &rx_data))
-            {
-                // Echo received byte back to UART_CHANNEL_1
-                UART_Send(UART_CHANNEL_1, &rx_data, 1);
-                UART_Debug_Printf(" [Echoed: %c]\r\n", rx_data);
-            }
-        }
-    }
-}
