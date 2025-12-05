@@ -108,7 +108,7 @@ class PIDTuner:
         step_row2 = ttk.Frame(step_frame)
         step_row2.pack(fill="x", padx=5, pady=2)
         ttk.Label(step_row2, text="Interval (ms):").pack(side="left")
-        self.step_interval = tk.IntVar(value=1000)
+        self.step_interval = tk.IntVar(value=5000)
         ttk.Entry(step_row2, textvariable=self.step_interval, width=8).pack(side="left", padx=5)
         
         self.btn_step = ttk.Button(step_frame, text="▶ Start Step Test", command=self.start_step_test)
@@ -310,7 +310,8 @@ class PIDTuner:
         self.root.after(1000, do_step)
 
     def rx_task(self):
-        # Regex to match T:100 C:99
+        # Updated regex to match new format: T:500 C:123 E:377 | Kp:... | P:... | O:...
+        # We only need T and C for plotting
         pattern = re.compile(r"T:(-?\d+)\s+C:(-?\d+)")
         
         while self.running:
