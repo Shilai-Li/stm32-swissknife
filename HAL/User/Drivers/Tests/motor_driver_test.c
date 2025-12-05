@@ -28,28 +28,54 @@ volatile float control_output = 0.0f;
 extern TIM_HandleTypeDef htim2; // Encoder
 extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 
+/* Buffer for accumulating partial packets */
+#define RX_BUFFER_SIZE 256
+uint8_t rx_buffer[RX_BUFFER_SIZE];
+uint16_t rx_buffer_head = 0;
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART2) {
-        // Debug: Print received size
-        // UART_Debug_Printf("RX Size: %d\r\n", Size);
-        
+        // 1. Append new data to rx_buffer
+        if (rx_buffer_head + Size <= RX_BUFFER_SIZE) {
+            memcpy(&rx_buffer[rx_buffer_head], pid_rx_buf, Size);
+            rx_buffer_head += Size;
+        } else {
+            // Buffer overflow - reset
+            rx_buffer_head = 0;
+            // Optionally append new data if it fits now, or just drop
+        }
+
+        // 2. Parse packets
         // Protocol: Header(2) + Kp(4) + Ki(4) + Kd(4) + Target(4) + StepAmp(4) + StepInt(2) + Checksum(1) = 25 bytes
-        for (int i = 0; i <= (int)Size - 25; i++) {
-            if (pid_rx_buf[i] == 0xAA && pid_rx_buf[i+1] == 0xBB) {
-                uint8_t *data = &pid_rx_buf[i+2];
+        int i = 0;
+        while (i <= (int)rx_buffer_head - 25) {
+            if (rx_buffer[i] == 0xAA && rx_buffer[i+1] == 0xBB) {
+                uint8_t *data = &rx_buffer[i+2];
                 uint8_t checksum = 0;
-                for (int j = 0; j < 22; j++) checksum += data[j];  // 22 bytes payload
+                for (int j = 0; j < 22; j++) checksum += data[j];
                 
-                if (checksum == pid_rx_buf[i+24]) {
-                    memcpy((void*)&tune_Kp, &data[0], 4);
-                    memcpy((void*)&tune_Ki, &data[4], 4);
-                    memcpy((void*)&tune_Kd, &data[8], 4);
-                    memcpy((void*)&tune_Target, &data[12], 4);
-                    memcpy((void*)&tune_StepAmplitude, &data[16], 4);
-                    memcpy((void*)&tune_StepInterval, &data[20], 2);
+                if (checksum == rx_buffer[i+24]) {
+                    // Valid Packet
+                    // Use temporary variables for atomic-like assignment to volatiles
+                    float temp_Kp, temp_Ki, temp_Kd;
+                    int32_t temp_Target, temp_StepAmp;
+                    uint16_t temp_StepInt;
+
+                    memcpy(&temp_Kp, &data[0], 4);
+                    memcpy(&temp_Ki, &data[4], 4);
+                    memcpy(&temp_Kd, &data[8], 4);
+                    memcpy(&temp_Target, &data[12], 4);
+                    memcpy(&temp_StepAmp, &data[16], 4);
+                    memcpy(&temp_StepInt, &data[20], 2);
+
+                    tune_Kp = temp_Kp;
+                    tune_Ki = temp_Ki;
+                    tune_Kd = temp_Kd;
+                    tune_Target = temp_Target;
+                    tune_StepAmplitude = temp_StepAmp;
+                    tune_StepInterval = temp_StepInt;
                     
-                    // Debug: Confirm successful parse (all PID params)
                     int kp_int = (int)tune_Kp, kp_dec = (int)((tune_Kp - kp_int) * 100);
                     int ki_int = (int)tune_Ki, ki_dec = (int)((tune_Ki - ki_int) * 100);
                     int kd_int = (int)tune_Kd, kd_dec = (int)((tune_Kd - kd_int) * 100);
@@ -58,9 +84,25 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
                     if (kd_dec < 0) kd_dec = -kd_dec;
                     UART_Debug_Printf(">>> PID: Kp=%d.%02d Ki=%d.%02d Kd=%d.%02d\r\n", 
                         kp_int, kp_dec, ki_int, ki_dec, kd_int, kd_dec);
+
+                    // Move index past this packet
+                    i += 25;
+                    continue; 
                 }
             }
+            i++;
         }
+
+        // 3. Compact buffer
+        if (i > 0) {
+            int remaining = rx_buffer_head - i;
+            if (remaining > 0) {
+                memmove(rx_buffer, &rx_buffer[i], remaining);
+            }
+            rx_buffer_head = remaining;
+        }
+
+        // 4. Restart Reception
         HAL_UARTEx_ReceiveToIdle_DMA(huart, pid_rx_buf, sizeof(pid_rx_buf));
     }
 }
@@ -105,7 +147,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void User_Entry(void)
 {
-    UART_Init();
+    // UART_Init(); // Conflict with DMA mode
+
     
     extern UART_HandleTypeDef huart2;
     HAL_UART_AbortReceive(&huart2);
@@ -170,9 +213,14 @@ void User_Entry(void)
             int val_dec = (int)((control_output - val_int) * 100);
             if (val_dec < 0) val_dec = -val_dec;
 
-            snprintf(buf, sizeof(buf), "T:%ld C:%ld RAW:%lu Out:%d.%02d\r\n", 
+            int kp_int_monitor = (int)posPID.Kp;
+            int kp_dec_monitor = (int)((posPID.Kp - kp_int_monitor) * 100);
+            if (kp_dec_monitor < 0) kp_dec_monitor = -kp_dec_monitor;
+
+            snprintf(buf, sizeof(buf), "T:%ld C:%ld RAW:%lu Out:%d.%02d Kp:%d.%02d\r\n", 
                 target_pos, current_pos, raw_cnt,
-                val_int, val_dec);
+                val_int, val_dec,
+                kp_int_monitor, kp_dec_monitor);
             UART_Send(UART_CHANNEL_2, (uint8_t*)buf, strlen(buf));
         }
 
