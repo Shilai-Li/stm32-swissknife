@@ -8,12 +8,13 @@
 #include "delay_driver.h"
 
 /* PID Tuning Globals */
-volatile float tune_Kp = 0.01f;
+volatile float tune_Kp = 0.2f;  // Default reduced to 0.2
 volatile float tune_Ki = 0.0f;
 volatile float tune_Kd = 0.0f;
 volatile int32_t tune_Target = 0;
 volatile int32_t tune_StepAmplitude = 500;   // Default step amplitude
-volatile uint16_t tune_StepInterval = 5000;  // Default step interval (ms) - increased to reduce heating
+volatile uint16_t tune_StepInterval = 5000;  // Default step interval (ms)
+volatile uint8_t auto_step_enabled = 1;      // Flag: 0=disabled (manual), 1=enabled (auto cycle)
 volatile uint8_t need_pid_reset = 0;           // Flag to reset PID state
 uint8_t pid_rx_buf[64];
 
@@ -137,6 +138,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     Delay_TIM_PeriodElapsedCallback(htim);
 
     if (htim->Instance == TIM3) {
+        // Software Divider for PID Loop (1ms -> 10ms)
+        static uint8_t pid_loop_divider = 0;
+        pid_loop_divider++;
+        if (pid_loop_divider < 10) {
+            return; // Skip PID computation, run at 100Hz (10ms)
+        }
+        pid_loop_divider = 0;
+
         static uint32_t debug_counter = 0;
         static int32_t last_target = 0;
         debug_counter++;
@@ -177,8 +186,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             last_target = target_pos;
         }
         
-        // Create debug snapshot every 1000ms (don't print in ISR!)
-        if (debug_counter % 1000 == 0) {
+        // Create debug snapshot every 1000ms (10ms * 100 = 1s)
+        if (debug_counter % 100 == 0) {
             debug_tune_kp_snapshot = tune_Kp;
             debug_pid_kp_snapshot = posPID.Kp;
             debug_snapshot_ready = 1;
@@ -187,20 +196,37 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         // Read Encoder
         current_pos = Motor_GetEncoderCount(&myMotor);
         
-        // Filter Position (Optional, kept 1.0 for now)
-        const float FILTER_ALPHA = 1.0f;
+        // Filter Position (Low Pass Filter)
+        float FILTER_ALPHA = 0.5f; // 0.5 = medium filtering
         filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
 
-        // Compute PID (dt = 0.001s)
-        control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, 0.001f);
+        // Read Encoder
+        current_pos = Motor_GetEncoderCount(&myMotor);
+        
+        // Filter Position (Low Pass Filter)
+        FILTER_ALPHA = 0.5f; // 0.5 = medium filtering
+        filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
+
+        // Compute PID (dt = 0.010f)
+        control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, 0.010f);
         
         // Apply Output
+        uint8_t pwm_out = 0;
+        float abs_output = control_output > 0 ? control_output : -control_output;
+
+        // Output Deadzone: if PWM is too small, cut it off to stop motor completely
+        if (abs_output < 10.0f) {
+            pwm_out = 0;
+        } else {
+            pwm_out = (uint8_t)abs_output;
+        }
+        
         if (control_output >= 0) {
             Motor_SetDirection(&myMotor, 1);
-            Motor_SetSpeed(&myMotor, (uint8_t)control_output);
+            Motor_SetSpeed(&myMotor, pwm_out);
         } else {
             Motor_SetDirection(&myMotor, 0);
-            Motor_SetSpeed(&myMotor, (uint8_t)(-control_output));
+            Motor_SetSpeed(&myMotor, pwm_out);
         }
     }
 }
@@ -251,8 +277,8 @@ void User_Entry(void)
     Motor_Start(&myMotor);
 
     // PID Init
-    PID_Init(&posPID, tune_Kp, tune_Ki, tune_Kd, 95.0f, 100.0f, 2.0f);  // Reduced deadzone
-    posPID.lpfBeta = 0.1f;
+    PID_Init(&posPID, tune_Kp, tune_Ki, tune_Kd, 95.0f, 100.0f, 10.0f);  // Increased deadzone to stop jitter
+    posPID.lpfBeta = 0.3f; // Stronger derivative filtering
 
     // Start 1ms Interrupt
     HAL_TIM_Base_Start_IT(&htim3);
@@ -333,7 +359,7 @@ void User_Entry(void)
         }
 
         // Step Response Test (configurable interval and amplitude)
-        if (tune_Target == 0 && tune_StepInterval > 0 && now - step_change_time > tune_StepInterval) {
+        if (auto_step_enabled && tune_Target == 0 && tune_StepInterval > 0 && now - step_change_time > tune_StepInterval) {
             step_change_time = now;
             if (target_pos == 0) {
                 target_pos = tune_StepAmplitude;
