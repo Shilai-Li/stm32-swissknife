@@ -14,10 +14,17 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.animation as animation
 
-# Protocol: Header(2) + Kp(4) + Ki(4) + Kd(4) + Target(4) + Checksum(1)
-# Header: 0xAA 0xBB
-# Floats are little-endian
-PACKET_FMT = '<fffi' # Kp, Ki, Kd, Target(int32)
+# Protocol Configuration
+USE_NEW_PROTOCOL = True  # Firmware is using 25-byte new protocol
+
+if USE_NEW_PROTOCOL:
+    # New Protocol: Header(2) + Kp(4) + Ki(4) + Kd(4) + Target(4) + StepAmp(4) + StepInt(2) + Checksum(1) = 25 bytes
+    PACKET_FMT = '<fffiih' # Kp, Ki, Kd, Target(int32), StepAmplitude(int32), StepInterval(uint16)
+else:
+    # Old Protocol: Header(2) + Kp(4) + Ki(4) + Kd(4) + Target(4) + Checksum(1) = 19 bytes
+    PACKET_FMT = '<fffi' # Kp, Ki, Kd, Target(int32)
+
+# Header: 0xAA 0xBB, Floats are little-endian
 PACKET_SIZE = struct.calcsize(PACKET_FMT)
 
 class PIDTuner:
@@ -88,11 +95,33 @@ class PIDTuner:
         self.auto_send = tk.BooleanVar(value=True)
         ttk.Checkbutton(left_panel, text="Auto Send on Change", variable=self.auto_send).pack(pady=5)
 
+        # Step Response Frame
+        step_frame = ttk.LabelFrame(left_panel, text="Step Response Test")
+        step_frame.pack(fill="x", padx=5, pady=5)
+        
+        step_row1 = ttk.Frame(step_frame)
+        step_row1.pack(fill="x", padx=5, pady=2)
+        ttk.Label(step_row1, text="Amplitude:").pack(side="left")
+        self.step_amplitude = tk.IntVar(value=500)
+        ttk.Entry(step_row1, textvariable=self.step_amplitude, width=8).pack(side="left", padx=5)
+        
+        step_row2 = ttk.Frame(step_frame)
+        step_row2.pack(fill="x", padx=5, pady=2)
+        ttk.Label(step_row2, text="Interval (ms):").pack(side="left")
+        self.step_interval = tk.IntVar(value=1000)
+        ttk.Entry(step_row2, textvariable=self.step_interval, width=8).pack(side="left", padx=5)
+        
+        self.btn_step = ttk.Button(step_frame, text="▶ Start Step Test", command=self.start_step_test)
+        self.btn_step.pack(fill="x", padx=5, pady=5)
+        
+        self.btn_clear = ttk.Button(step_frame, text="Clear Plot", command=self.clear_plot)
+        self.btn_clear.pack(fill="x", padx=5, pady=5)
+
         # Right Panel: Plot
         right_panel = ttk.Frame(self.root)
         right_panel.pack(side="right", fill="both", expand=True)
         
-        self.fig = Figure(figsize=(6, 5), dpi=100)
+        self.fig = Figure(figsize=(6, 4), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_title("Position Response")
         self.ax.set_xlabel("Time (s)")
@@ -105,6 +134,17 @@ class PIDTuner:
         self.canvas = FigureCanvasTkAgg(self.fig, master=right_panel)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        # Serial Log Frame
+        log_frame = ttk.LabelFrame(right_panel, text="Serial Log")
+        log_frame.pack(fill="x", padx=5, pady=5)
+        
+        self.log_text = tk.Text(log_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
+        self.log_text.pack(fill="x", padx=5, pady=5)
+        
+        log_btn_frame = ttk.Frame(log_frame)
+        log_btn_frame.pack(fill="x", padx=5, pady=2)
+        ttk.Button(log_btn_frame, text="Clear Log", command=self.clear_log).pack(side="left")
 
     def create_slider(self, parent, label, variable, min_val, max_val, step):
         frame = ttk.Frame(parent)
@@ -118,7 +158,7 @@ class PIDTuner:
         btn_dec.pack(side="left", padx=2)
         
         scale = ttk.Scale(frame, from_=min_val, to=max_val, variable=variable, 
-                         command=lambda v: self.on_change())
+                         command=lambda v: self.on_change(variable))
         scale.pack(side="left", fill="x", expand=True)
         
         # + 按钮
@@ -134,11 +174,25 @@ class PIDTuner:
         try:
             current = variable.get()
             new_value = current + delta
+            if isinstance(variable, tk.DoubleVar):
+                new_value = round(new_value, 2)
             variable.set(new_value)
             if self.auto_send.get() and self.is_connected:
                 self.send_params()
         except:
             pass
+
+    def on_change(self, variable=None):
+        if variable and isinstance(variable, tk.DoubleVar):
+            try:
+                # Round to 2 decimal places
+                val = variable.get()
+                variable.set(round(val, 2))
+            except:
+                pass
+
+        if self.auto_send.get() and self.is_connected:
+            self.send_params()
 
     def scan_ports(self):
         # 保存当前选择的端口
@@ -176,9 +230,7 @@ class PIDTuner:
             self.btn_connect.config(text="Connect")
             print("Disconnected")
 
-    def on_change(self):
-        if self.auto_send.get() and self.is_connected:
-            self.send_params()
+
 
     def send_params(self):
         if not self.is_connected or not self.ser:
@@ -189,7 +241,13 @@ class PIDTuner:
         kd = float(self.kd.get())
         target = int(self.target.get())
         
-        payload = struct.pack(PACKET_FMT, kp, ki, kd, target)
+        if USE_NEW_PROTOCOL:
+            step_amp = int(self.step_amplitude.get())
+            step_int = int(self.step_interval.get())
+            payload = struct.pack(PACKET_FMT, kp, ki, kd, target, step_amp, step_int)
+        else:
+            payload = struct.pack(PACKET_FMT, kp, ki, kd, target)
+        
         header = b'\xAA\xBB'
         
         checksum = 0
@@ -199,6 +257,57 @@ class PIDTuner:
         packet = header + payload + bytes([checksum])
         
         self.ser.write(packet)
+        self.ser.flush()  # Ensure data is sent immediately
+        
+        # Debug: print packet hex
+        print(f"TX: Kp={kp:.2f} Ki={ki:.2f} Kd={kd:.2f} Target={target} | {packet.hex()}")
+
+    def clear_plot(self):
+        """Clear the plot data"""
+        self.time_data.clear()
+        self.target_data.clear()
+        self.current_data.clear()
+        self.start_time = time.time()
+        print("Plot cleared")
+
+    def clear_log(self):
+        """Clear the serial log"""
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete(1.0, tk.END)
+        self.log_text.config(state=tk.DISABLED)
+
+    def log_message(self, msg):
+        """Add a message to the serial log"""
+        def _update():
+            self.log_text.config(state=tk.NORMAL)
+            self.log_text.insert(tk.END, msg + "\n")
+            self.log_text.see(tk.END)  # Auto-scroll
+            self.log_text.config(state=tk.DISABLED)
+        self.root.after(0, _update)
+
+    def start_step_test(self):
+        """Start a step response test"""
+        if not self.is_connected:
+            print("Not connected!")
+            return
+        
+        amplitude = self.step_amplitude.get()
+        
+        # Clear plot and reset time
+        self.clear_plot()
+        
+        # First set target to 0
+        self.target.set(0)
+        self.send_params()
+        print(f"Step test: Starting from 0, will step to {amplitude}")
+        
+        # Schedule step after 1 second
+        def do_step():
+            self.target.set(amplitude)
+            self.send_params()
+            print(f"Step test: Stepped to {amplitude}")
+        
+        self.root.after(1000, do_step)
 
     def rx_task(self):
         # Regex to match T:100 C:99
@@ -211,19 +320,24 @@ class PIDTuner:
                     if line:
                         try:
                             text = line.decode('utf-8', errors='ignore').strip()
-                            match = pattern.search(text)
-                            if match:
-                                t_val = int(match.group(1))
-                                c_val = int(match.group(2))
+                            if text:
+                                # Log non-T:C: messages (debug output, etc.)
+                                if not text.startswith("T:"):
+                                    self.log_message(text)
                                 
-                                now = time.time() - self.start_time
-                                self.time_data.append(now)
-                                self.target_data.append(t_val)
-                                self.current_data.append(c_val)
+                                match = pattern.search(text)
+                                if match:
+                                    t_val = int(match.group(1))
+                                    c_val = int(match.group(2))
+                                    
+                                    now = time.time() - self.start_time
+                                    self.time_data.append(now)
+                                    self.target_data.append(t_val)
+                                    self.current_data.append(c_val)
                         except:
                             pass
                 except Exception as e:
-                    print(f"RX Error: {e}")
+                    self.log_message(f"RX Error: {e}")
                     time.sleep(1)
             else:
                 time.sleep(0.1)

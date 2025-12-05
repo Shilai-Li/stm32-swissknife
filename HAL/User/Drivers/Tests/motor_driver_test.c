@@ -8,10 +8,12 @@
 #include "delay_driver.h"
 
 /* PID Tuning Globals */
-volatile float tune_Kp = 0.02f;
+volatile float tune_Kp = 0.0f;
 volatile float tune_Ki = 0.0f;
-volatile float tune_Kd = 0.1f;
+volatile float tune_Kd = 0.0f;
 volatile int32_t tune_Target = 0;
+volatile int32_t tune_StepAmplitude = 500;   // Default step amplitude
+volatile uint16_t tune_StepInterval = 1000;  // Default step interval (ms)
 uint8_t pid_rx_buf[64];
 
 /* Global Control Variables (for ISR) */
@@ -29,18 +31,33 @@ extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART2) {
-        // Search for header 0xAA 0xBB
-        for (int i = 0; i <= (int)Size - 19; i++) {
+        // Debug: Print received size
+        // UART_Debug_Printf("RX Size: %d\r\n", Size);
+        
+        // Protocol: Header(2) + Kp(4) + Ki(4) + Kd(4) + Target(4) + StepAmp(4) + StepInt(2) + Checksum(1) = 25 bytes
+        for (int i = 0; i <= (int)Size - 25; i++) {
             if (pid_rx_buf[i] == 0xAA && pid_rx_buf[i+1] == 0xBB) {
                 uint8_t *data = &pid_rx_buf[i+2];
                 uint8_t checksum = 0;
-                for (int j = 0; j < 16; j++) checksum += data[j];
+                for (int j = 0; j < 22; j++) checksum += data[j];  // 22 bytes payload
                 
-                if (checksum == pid_rx_buf[i+18]) {
+                if (checksum == pid_rx_buf[i+24]) {
                     memcpy((void*)&tune_Kp, &data[0], 4);
                     memcpy((void*)&tune_Ki, &data[4], 4);
                     memcpy((void*)&tune_Kd, &data[8], 4);
                     memcpy((void*)&tune_Target, &data[12], 4);
+                    memcpy((void*)&tune_StepAmplitude, &data[16], 4);
+                    memcpy((void*)&tune_StepInterval, &data[20], 2);
+                    
+                    // Debug: Confirm successful parse (all PID params)
+                    int kp_int = (int)tune_Kp, kp_dec = (int)((tune_Kp - kp_int) * 100);
+                    int ki_int = (int)tune_Ki, ki_dec = (int)((tune_Ki - ki_int) * 100);
+                    int kd_int = (int)tune_Kd, kd_dec = (int)((tune_Kd - kd_int) * 100);
+                    if (kp_dec < 0) kp_dec = -kp_dec;
+                    if (ki_dec < 0) ki_dec = -ki_dec;
+                    if (kd_dec < 0) kd_dec = -kd_dec;
+                    UART_Debug_Printf(">>> PID: Kp=%d.%02d Ki=%d.%02d Kd=%d.%02d\r\n", 
+                        kp_int, kp_dec, ki_int, ki_dec, kd_int, kd_dec);
                 }
             }
         }
@@ -74,7 +91,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
         // Compute PID (dt = 0.001s)
         control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, 0.001f);
-
+        
         // Apply Output
         if (control_output >= 0) {
             Motor_SetDirection(&myMotor, 1);
@@ -159,12 +176,12 @@ void User_Entry(void)
             UART_Send(UART_CHANNEL_2, (uint8_t*)buf, strlen(buf));
         }
 
-        // Step Response Test (1s interval)
-        if (tune_Target == 0 && now - step_change_time > 1000) {
+        // Step Response Test (configurable interval and amplitude)
+        if (tune_Target == 0 && tune_StepInterval > 0 && now - step_change_time > tune_StepInterval) {
             step_change_time = now;
             if (target_pos == 0) {
-                target_pos = 500;
-                UART_Debug_Printf(">>> Step UP\r\n");
+                target_pos = tune_StepAmplitude;
+                UART_Debug_Printf(">>> Step UP to %ld\r\n", tune_StepAmplitude);
             } else {
                 target_pos = 0;
                 UART_Debug_Printf(">>> Step DOWN\r\n");
