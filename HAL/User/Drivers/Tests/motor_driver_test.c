@@ -4,370 +4,312 @@
 #include "pid.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <math.h>
 #include "usart.h"
 #include "delay_driver.h"
 
-/* PID Tuning Globals */
-volatile float tune_Kp = 0.2f;  // Default reduced to 0.2
-volatile float tune_Ki = 0.0f;
-volatile float tune_Kd = 0.0f;
-volatile int32_t tune_Target = 0;
-volatile int32_t tune_StepAmplitude = 500;   // Default step amplitude
-volatile uint16_t tune_StepInterval = 5000;  // Default step interval (ms)
-volatile uint8_t auto_step_enabled = 1;      // Flag: 0=disabled (manual), 1=enabled (auto cycle)
-volatile uint8_t need_pid_reset = 0;           // Flag to reset PID state
-uint8_t pid_rx_buf[64];
+/*******************************************************************************
+ * SERVO CONTROL PARAMETERS
+ ******************************************************************************/
+// Mechanical/Control Constraints
+#define SERVO_MAX_VELOCITY      10000.0f  // Pulses per second
+#define SERVO_ACCELERATION      50000.0f  // Pulses per second^2
+#define SERVO_DECELERATION      50000.0f  
+#define SERVO_POS_TOLERANCE     2         // Deadband in pulses
+#define CONTROL_LOOP_FREQ       1000.0f   // 1kHz
+#define CONTROL_DT              (1.0f/CONTROL_LOOP_FREQ)
 
-/* Global Control Variables (for ISR) */
+// PID Gains (Position Loop)
+// Note: These need tuning based on motor voltage and load
+volatile float servo_kp = 2.5f;   
+volatile float servo_ki = 0.05f;
+volatile float servo_kd = 0.10f;
+volatile float servo_pid_limit = 100.0f; // Max PWM Duty %
+
+/*******************************************************************************
+ * GLOBAL OBJECTS
+ ******************************************************************************/
 Motor_Handle_t myMotor;
-PID_Controller_t posPID;
-volatile int32_t target_pos = 0;
-volatile int32_t current_pos = 0;
-volatile float filtered_pos = 0.0f;
-volatile float control_output = 0.0f;
+PIDController posPID;
 
-/* External Handles */
-extern TIM_HandleTypeDef htim2; // Encoder
+// Servo State
+typedef struct {
+    int32_t target_pos;         // Final desired position
+    float   setpoint_pos;       // Current internal setpoint (Trajectory generator output)
+    float   setpoint_vel;       // Current internal velocity
+    int32_t actual_pos;         // Actual encoder position
+    uint8_t is_at_target;       // Flag 1=Yes, 0=No
+} Servo_State_t;
+
+volatile Servo_State_t servo;
+
+/* External Handles from main.c/tim.c */
+extern TIM_HandleTypeDef htim1; // PWM (PA8)
+extern TIM_HandleTypeDef htim2; // Encoder (PA0/PA1)
 extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 
-/* Buffer for accumulating partial packets */
-#define RX_BUFFER_SIZE 256
-uint8_t rx_buffer[RX_BUFFER_SIZE];
-uint16_t rx_buffer_head = 0;
+/* Debug / Telemetry */
+volatile uint32_t debug_counter = 0;
+volatile float debug_last_pwm = 0.0f;
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-    if (huart->Instance == USART2) {
-        UART_Debug_Printf(">>> RX Size: %d\r\n", Size);
-        
-        // 1. Append new data to rx_buffer
-        if (rx_buffer_head + Size <= RX_BUFFER_SIZE) {
-            memcpy(&rx_buffer[rx_buffer_head], pid_rx_buf, Size);
-            rx_buffer_head += Size;
-        } else {
-            // Buffer overflow - reset
-            UART_Debug_Printf("!!! Buffer overflow, resetting\r\n");
-            rx_buffer_head = 0;
-        }
+/*******************************************************************************
+ * HELPER FUNCTIONS
+ ******************************************************************************/
+void Servo_Init(void);
+void Servo_SetTarget(int32_t position);
+uint8_t Servo_IsAtTarget(void);
+void Servo_Update_1kHz(void);
+float Servo_ComputeTrajectory(void);
 
-        // 2. Parse packets
-        // Protocol: Header(2) + Kp(4) + Ki(4) + Kd(4) + Target(4) + StepAmp(4) + StepInt(2) + Checksum(1) = 25 bytes
-        int i = 0;
-        int packets_found = 0;
-        while (i <= (int)rx_buffer_head - 25) {
-            if (rx_buffer[i] == 0xAA && rx_buffer[i+1] == 0xBB) {
-                uint8_t *data = &rx_buffer[i+2];
-                uint8_t checksum = 0;
-                for (int j = 0; j < 22; j++) checksum += data[j];
-                
-                if (checksum == rx_buffer[i+24]) {
-                    packets_found++;
-                    UART_Debug_Printf(">>> Valid packet found at offset %d\r\n", i);
-                    
-                    // Valid Packet
-                    // Use temporary variables for atomic-like assignment to volatiles
-                    float temp_Kp, temp_Ki, temp_Kd;
-                    int32_t temp_Target, temp_StepAmp;
-                    uint16_t temp_StepInt;
+/*******************************************************************************
+ * IMPLEMENTATION
+ ******************************************************************************/
 
-                    memcpy(&temp_Kp, &data[0], 4);
-                    memcpy(&temp_Ki, &data[4], 4);
-                    memcpy(&temp_Kd, &data[8], 4);
-                    memcpy(&temp_Target, &data[12], 4);
-                    memcpy(&temp_StepAmp, &data[16], 4);
-                    memcpy(&temp_StepInt, &data[20], 2);
+void Servo_Init(void) {
+    // 1. Initialize Global State
+    memset((void*)&servo, 0, sizeof(Servo_State_t));
+    
+    // 2. Configure Hardware Abstraction Layer
+    // PWM: TIM1 CH1 (PA8)
+    // Encoder: TIM2 (PA0, PA1)
+    
+    myMotor.htim = &htim1;
+    myMotor.channel = TIM_CHANNEL_1; 
+    
+    // Assumed Control Pins (Verify these match your board!)
+    // If different, these are the only lines you need to change for GPIOs
+    myMotor.dir_port = GPIOB;
+    myMotor.dir_pin = GPIO_PIN_13;
+    myMotor.en_port = GPIOC;
+    myMotor.en_pin = GPIO_PIN_15;
+    
+    myMotor.pwm_period = 99; // Standard 0-100 scale (Assuming timer ARR=99)
+    myMotor.htim_enc = &htim2;
 
-                    tune_Kp = temp_Kp;
-                    tune_Ki = temp_Ki;
-                    tune_Kd = temp_Kd;
-                    tune_Target = temp_Target;
-                    tune_StepAmplitude = temp_StepAmp;
-                    tune_StepInterval = temp_StepInt;
-                    
-                    need_pid_reset = 1; // Request PID reset in main loop/interrupt
+    // 3. Initialize Drivers
+    Motor_Init(&myMotor);
+    Motor_Encoder_Init(&myMotor);
+    Motor_ResetEncoderCount(&myMotor, 0);
+    Motor_Start(&myMotor);
 
-                    
-                    int kp_int = (int)tune_Kp, kp_dec = (int)((tune_Kp - kp_int) * 100);
-                    int ki_int = (int)tune_Ki, ki_dec = (int)((tune_Ki - ki_int) * 100);
-                    int kd_int = (int)tune_Kd, kd_dec = (int)((tune_Kd - kd_int) * 100);
-                    if (kp_dec < 0) kp_dec = -kp_dec;
-                    if (ki_dec < 0) ki_dec = -ki_dec;
-                    if (kd_dec < 0) kd_dec = -kd_dec;
-                    UART_Debug_Printf(">>> PID Updated: Kp=%d.%02d Ki=%d.%02d Kd=%d.%02d Tgt=%ld\r\n", 
-                        kp_int, kp_dec, ki_int, ki_dec, kd_int, kd_dec, tune_Target);
-
-                    // Move index past this packet
-                    i += 25;
-                    continue; 
-                } else {
-                    UART_Debug_Printf("!!! Checksum fail at %d (calc=%d, recv=%d)\r\n", 
-                        i, checksum, rx_buffer[i+24]);
-                }
-            }
-            i++;
-        }
-
-        if (packets_found == 0) {
-            UART_Debug_Printf("!!! No valid packets in buffer\r\n");
-        }
-
-        // 3. Compact buffer
-        if (i > 0) {
-            int remaining = rx_buffer_head - i;
-            if (remaining > 0) {
-                memmove(rx_buffer, &rx_buffer[i], remaining);
-            }
-            rx_buffer_head = remaining;
-        }
-
-        // 4. Restart Reception
-        HAL_UARTEx_ReceiveToIdle_DMA(huart, pid_rx_buf, sizeof(pid_rx_buf));
-    }
+    // 4. Initialize PID
+    PID_Init(&posPID, servo_kp, servo_ki, servo_kd, servo_pid_limit, 1000.0f);
+    
+    // 5. Start Control Loop Interrupt
+    HAL_TIM_Base_Start_IT(&htim3);
 }
 
-/* Debug snapshot variables (written by ISR, read by main loop) */
-volatile float debug_tune_kp_snapshot = 0.0f;
-volatile float debug_pid_kp_snapshot = 0.0f;
-volatile uint8_t debug_reset_executed = 0;
-volatile uint8_t debug_snapshot_ready = 0;
+void Servo_SetTarget(int32_t position) {
+    servo.target_pos = position;
+    servo.is_at_target = 0;
+}
 
-/* 1ms Timer Interrupt Callback */
+uint8_t Servo_IsAtTarget(void) {
+    return servo.is_at_target;
+}
+
+/**
+ * @brief  Time-Optimal Trajectory Generator (Square Root Controller)
+ * @return New Position Setpoint
+ */
+float Servo_ComputeTrajectory(void) {
+    // 1. Calculate Error Distance from Setpoint to Target
+    float error = (float)servo.target_pos - servo.setpoint_pos;
+    
+    // 2. Determine Optimal Velocity to stop exactly at target
+    // V_optimal = sqrt(2 * a * d) * sign(d)
+    // We limit this by Max Velocity
+    float desired_vel;
+    float stop_dist_required = (servo.setpoint_vel * servo.setpoint_vel) / (2.0f * SERVO_DECELERATION);
+    
+    // Simple Trapezoidal Logic:
+    // If we are close enough to start braking, we aim for V=0
+    // A robust way is: TargetVel = K * Error, but clamped by Physics.
+    
+    // Let's use the robust "Square Root" method for time-optimality:
+    // This allows max acceleration until we MUST brake.
+    if (error == 0.0f) return servo.setpoint_pos;
+
+    float direction = (error > 0.0f) ? 1.0f : -1.0f;
+    float abs_error = fabsf(error);
+
+    // Calculate max allowed velocity at this distance to be able to stop in time
+    float max_vel_at_dist = sqrtf(2.0f * SERVO_DECELERATION * abs_error);
+    
+    // Clamp to global max velocity
+    float target_vel = max_vel_at_dist;
+    if (target_vel > SERVO_MAX_VELOCITY) target_vel = SERVO_MAX_VELOCITY;
+    
+    target_vel *= direction;
+
+    // 3. Ramp current velocity towards target velocity
+    float vel_diff = target_vel - servo.setpoint_vel;
+    float max_vel_change = SERVO_ACCELERATION * CONTROL_DT;
+
+    if (vel_diff > max_vel_change) {
+        servo.setpoint_vel += max_vel_change;
+    } else if (vel_diff < -max_vel_change) {
+        servo.setpoint_vel -= max_vel_change;
+    } else {
+        servo.setpoint_vel = target_vel;
+    }
+
+    // 4. Integrate Velocity to get Position
+    return servo.setpoint_pos + (servo.setpoint_vel * CONTROL_DT);
+}
+
+/**
+ * @brief  1kHz Control Loop (Called from TIM3 ISR)
+ */
+void Servo_Update_1kHz(void) {
+    // 1. Read Actual Position
+    servo.actual_pos = Motor_GetEncoderCount(&myMotor);
+
+    // 2. Update Trajectory Setpoint
+    servo.setpoint_pos = Servo_ComputeTrajectory();
+
+    // 3. Compute Position Error (Setpoint vs Actual)
+    float pos_error = servo.setpoint_pos - (float)servo.actual_pos;
+
+    // 4. Check On Target Condition
+    // We are at target if both error is low AND velocity is near zero
+    if (fabsf(pos_error) < SERVO_POS_TOLERANCE && fabsf(servo.setpoint_vel) < 1.0f) {
+        servo.is_at_target = 1;
+        // Optional: Disable integral windup or relax motor if needed?
+        // For Servo, we usually want active holding, so we keep PID active.
+    } 
+
+    // 5. Compute PID Output
+    // Check Deadband
+    if (fabsf(pos_error) < 1.0f) pos_error = 0.0f;
+    
+    float pid_out = PID_Compute(&posPID, pos_error);
+    debug_last_pwm = pid_out;
+
+    // 6. Feedforward (Static Friction Compensation) - Optional
+    // if (pos_error > 0) pid_out += 2.0f;
+    // if (pos_error < 0) pid_out -= 2.0f;
+    
+    // 7. Apply to Motor
+    uint8_t pwm_val = 0;
+    float abs_out = fabsf(pid_out);
+    
+    if (abs_out > 100.0f) abs_out = 100.0f;
+    pwm_val = (uint8_t)abs_out;
+    
+    // Deadzone check for motor hardware protection (prevent high freq PWM switching at 0-1%)
+    if (pwm_val < 2) pwm_val = 0; 
+    
+    if (pid_out >= 0) {
+        Motor_SetDirection(&myMotor, 1);
+    } else {
+        Motor_SetDirection(&myMotor, 0);
+    }
+    
+    Motor_SetSpeed(&myMotor, pwm_val);
+}
+
+
+/* Interrupt Callback */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    // Call Delay Driver Callback (for micros() support)
-    Delay_TIM_PeriodElapsedCallback(htim);
-
+    // Ensure we only run this for TIM3
     if (htim->Instance == TIM3) {
-        // Software Divider for PID Loop (1ms -> 10ms)
-        static uint8_t pid_loop_divider = 0;
-        pid_loop_divider++;
-        if (pid_loop_divider < 10) {
-            return; // Skip PID computation, run at 100Hz (10ms)
-        }
-        pid_loop_divider = 0;
-
-        static uint32_t debug_counter = 0;
-        static int32_t last_target = 0;
+        Servo_Update_1kHz();
         debug_counter++;
-        
-        // Update PID params
-        posPID.Kp = tune_Kp;
-        posPID.Ki = tune_Ki;
-        posPID.Kd = tune_Kd;
-        
-        // Reset PID when parameters change
-        if (need_pid_reset) {
-            PID_Reset(&posPID);
-            Motor_ResetEncoderCount(&myMotor, 0);  // Clear encoder accumulation
-            current_pos = 0;
-            filtered_pos = 0.0f;
-            target_pos = 0;
-            last_target = 0;
-            need_pid_reset = 0;
-            debug_reset_executed = 1;
-        }
-        
-        // Manual Target Override
-        if (tune_Target != 0) {
-            target_pos = tune_Target;
-        }
-        
-        // Reset encoder when target changes significantly (prevent unbounded drift)
-        if (target_pos != last_target) {
-            int32_t target_change = target_pos - last_target;
-            if (target_change > 100 || target_change < -100) {
-                // Reset encoder to current target
-                Motor_ResetEncoderCount(&myMotor, target_pos);
-                current_pos = target_pos;
-                filtered_pos = (float)target_pos;
-                posPID.integral = 0.0f;  // Clear integral on large target changes
-                posPID.prevMeasurement = (float)target_pos;  // Update derivative baseline
-            }
-            last_target = target_pos;
-        }
-        
-        // Create debug snapshot every 1000ms (10ms * 100 = 1s)
-        if (debug_counter % 100 == 0) {
-            debug_tune_kp_snapshot = tune_Kp;
-            debug_pid_kp_snapshot = posPID.Kp;
-            debug_snapshot_ready = 1;
-        }
-
-        // Read Encoder
-        current_pos = Motor_GetEncoderCount(&myMotor);
-        
-        // Filter Position (Low Pass Filter)
-        float FILTER_ALPHA = 0.5f; // 0.5 = medium filtering
-        filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
-
-        // Read Encoder
-        current_pos = Motor_GetEncoderCount(&myMotor);
-        
-        // Filter Position (Low Pass Filter)
-        FILTER_ALPHA = 0.5f; // 0.5 = medium filtering
-        filtered_pos = FILTER_ALPHA * current_pos + (1.0f - FILTER_ALPHA) * filtered_pos;
-
-        // Compute PID (dt = 0.010f)
-        control_output = PID_Compute(&posPID, (float)target_pos, filtered_pos, 0.010f);
-        
-        // Apply Output
-        uint8_t pwm_out = 0;
-        float abs_output = control_output > 0 ? control_output : -control_output;
-
-        // Output Deadzone: if PWM is too small, cut it off to stop motor completely
-        if (abs_output < 10.0f) {
-            pwm_out = 0;
-        } else {
-            pwm_out = (uint8_t)abs_output;
-        }
-        
-        if (control_output >= 0) {
-            Motor_SetDirection(&myMotor, 1);
-            Motor_SetSpeed(&myMotor, pwm_out);
-        } else {
-            Motor_SetDirection(&myMotor, 0);
-            Motor_SetSpeed(&myMotor, pwm_out);
-        }
     }
 }
 
+
+/*******************************************************************************
+ * MAIN ENTRY POINT (Test Loop)
+ ******************************************************************************/
 void User_Entry(void)
 {
-    // UART_Init(); // Conflict with DMA mode
+    UART_Debug_Printf("=== Servo Mode Initializing ===\r\n");
 
-    
-    extern UART_HandleTypeDef huart2;
-    HAL_UART_AbortReceive(&huart2);
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, pid_rx_buf, sizeof(pid_rx_buf));
-
-    UART_Debug_Printf("=== PID 1ms Interrupt Mode ===\r\n");
-
-    // GPIO Init
+    // Initialize Servo System
+    // (GPIO Init is assumed done by main.c or we need to ensure local init safely)
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
-
+    
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    // PB13 - DIR
+    // Re-verify these pins! 
+    // DIR: PB13, EN: PC15
     GPIO_InitStruct.Pin = GPIO_PIN_13;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-    // PC15 - EN
     GPIO_InitStruct.Pin = GPIO_PIN_15;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    // Motor Config
-    myMotor.htim = &htim1;
-    myMotor.channel = TIM_CHANNEL_1;
-    myMotor.en_port = GPIOC;
-    myMotor.en_pin = GPIO_PIN_15;
-    myMotor.dir_port = GPIOB;
-    myMotor.dir_pin = GPIO_PIN_13;
-    myMotor.pwm_period = 99;
-    myMotor.htim_enc = &htim2;
+    Servo_Init();
 
-    Motor_Init(&myMotor);
-    Motor_Encoder_Init(&myMotor);
-    Motor_ResetEncoderCount(&myMotor, 0);
-    Motor_Start(&myMotor);
+    UART_Debug_Printf("=== Servo Mode Ready ===\r\n");
 
-    // PID Init
-    PID_Init(&posPID, tune_Kp, tune_Ki, tune_Kd, 95.0f, 100.0f, 10.0f);  // Increased deadzone to stop jitter
-    posPID.lpfBeta = 0.3f; // Stronger derivative filtering
-
-    // Start 1ms Interrupt
-    HAL_TIM_Base_Start_IT(&htim3);
-
-    uint32_t print_time = 0;
-    uint32_t step_change_time = 0;
+    uint32_t last_print = 0;
+    
+    // Test Sequence Logic
+    uint8_t step = 0;
+    uint32_t wait_start = 0;
 
     while (1) {
-        uint32_t now = HAL_GetTick();
-
-        // Print Debug Info (50ms)
-        if (now - print_time >= 50) {
-            print_time = now;
-            
-            char buf[200];
-            int val_int = (int)control_output;
-            int val_dec = (int)((control_output - val_int) * 100);
-            if (val_dec < 0) val_dec = -val_dec;
-
-            // PID Coefficients with 3 decimal places
-            int kp_int = (int)posPID.Kp;
-            int kp_dec = (int)((posPID.Kp - kp_int) * 1000);
-            if (kp_dec < 0) kp_dec = -kp_dec;
-            
-            int ki_int = (int)posPID.Ki;
-            int ki_dec = (int)((posPID.Ki - ki_int) * 1000);
-            if (ki_dec < 0) ki_dec = -ki_dec;
-            
-            int kd_int = (int)posPID.Kd;
-            int kd_dec = (int)((posPID.Kd - kd_int) * 1000);
-            if (kd_dec < 0) kd_dec = -kd_dec;
-            
-            // Error and PID components
-            int32_t error = target_pos - current_pos;
-            float p_term = posPID.Kp * error;
-            float i_term = posPID.Ki * posPID.integral;
-            float d_term = posPID.Kd * posPID.dTerm;
-            
-            int p_int = (int)p_term;
-            int p_frac = (int)((p_term - p_int) * 100);
-            if (p_frac < 0) p_frac = -p_frac;
-            
-            int i_int = (int)i_term;
-            int i_frac = (int)((i_term - i_int) * 100);
-            if (i_frac < 0) i_frac = -i_frac;
-            
-            int integ_int = (int)posPID.integral;
-            int integ_frac = (int)((posPID.integral - integ_int) * 10);
-            if (integ_frac < 0) integ_frac = -integ_frac;
-
-            snprintf(buf, sizeof(buf), "T:%ld C:%ld E:%ld | Kp:%d.%03d Ki:%d.%03d Kd:%d.%03d | P:%d.%02d I:%d.%02d Int:%d.%01d | O:%d.%02d\r\n", 
-                target_pos, current_pos, error,
-                kp_int, kp_dec, ki_int, ki_dec, kd_int, kd_dec,
-                p_int, p_frac, i_int, i_frac, integ_int, integ_frac,
-                val_int, val_dec);
-            UART_Send(UART_CHANNEL_2, (uint8_t*)buf, strlen(buf));
-        }
-        
-        // Print debug snapshot from ISR
-        if (debug_snapshot_ready) {
-            debug_snapshot_ready = 0;
-            int tune_int = (int)debug_tune_kp_snapshot;
-            int tune_dec = (int)((debug_tune_kp_snapshot - tune_int) * 100);
-            if (tune_dec < 0) tune_dec = -tune_dec;
-            
-            int pid_int = (int)debug_pid_kp_snapshot;
-            int pid_dec = (int)((debug_pid_kp_snapshot - pid_int) * 100);
-            if (pid_dec < 0) pid_dec = -pid_dec;
-            
-            UART_Debug_Printf("### ISR: tune_Kp=%d.%02d -> posPID.Kp=%d.%02d\r\n",
-                tune_int, tune_dec, pid_int, pid_dec);
-        }
-        
-        // Print reset notification
-        if (debug_reset_executed) {
-            debug_reset_executed = 0;
-            UART_Debug_Printf("### PID RESET executed\r\n");
+        // Simple Debug Telemetry (10Hz)
+        if (HAL_GetTick() - last_print > 100) {
+            last_print = HAL_GetTick();
+            UART_Debug_Printf("Tgt:%ld Act:%ld Set:%.1f Vel:%.1f PWM:%.1f\r\n", 
+                servo.target_pos, servo.actual_pos, servo.setpoint_pos, servo.setpoint_vel, debug_last_pwm);
         }
 
-        // Step Response Test (configurable interval and amplitude)
-        if (auto_step_enabled && tune_Target == 0 && tune_StepInterval > 0 && now - step_change_time > tune_StepInterval) {
-            step_change_time = now;
-            if (target_pos == 0) {
-                target_pos = tune_StepAmplitude;
-                UART_Debug_Printf(">>> Step UP to %ld\r\n", tune_StepAmplitude);
-            } else {
-                target_pos = 0;
-                UART_Debug_Printf(">>> Step DOWN\r\n");
-            }
+        // Servo Test Sequence: 0 -> 1000 -> 0 -> -1000 -> ...
+        switch (step) {
+            case 0:
+                UART_Debug_Printf(">>> Command: Go to 2000\r\n");
+                Servo_SetTarget(2000);
+                step++;
+                break;
+            case 1:
+                if (Servo_IsAtTarget()) {
+                    UART_Debug_Printf(">>> Reached 2000. Holding...\r\n");
+                    wait_start = HAL_GetTick();
+                    step++;
+                }
+                break;
+            case 2:
+                if (HAL_GetTick() - wait_start > 2000) { // Hold for 2s
+                    UART_Debug_Printf(">>> Command: Go to 0\r\n");
+                    Servo_SetTarget(0);
+                    step++;
+                }
+                break;
+            case 3:
+                if (Servo_IsAtTarget()) {
+                     UART_Debug_Printf(">>> Reached 0. Holding...\r\n");
+                    wait_start = HAL_GetTick();
+                    step++;
+                }
+                break;
+            case 4:
+                if (HAL_GetTick() - wait_start > 2000) {
+                     UART_Debug_Printf(">>> Command: Go to -2000\r\n");
+                    Servo_SetTarget(-2000);
+                    step++;
+                }
+                break;
+            case 5:
+                if (Servo_IsAtTarget()) {
+                    wait_start = HAL_GetTick();
+                    step++;
+                }
+                break;
+            case 6:
+                if (HAL_GetTick() - wait_start > 2000) {
+                    step = 0; // Loop back
+                }
+                break;
         }
     }
 }
