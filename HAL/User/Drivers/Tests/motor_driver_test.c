@@ -53,6 +53,9 @@ extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 volatile uint32_t debug_counter = 0;
 volatile float debug_last_pwm = 0.0f;
 
+/* Servo Enable Flag - prevents motor output until fully initialized */
+volatile uint8_t servo_enabled = 0;
+
 /*******************************************************************************
  * HELPER FUNCTIONS
  ******************************************************************************/
@@ -67,6 +70,9 @@ float Servo_ComputeTrajectory(void);
  ******************************************************************************/
 
 void Servo_Init(void) {
+    // 0. FIRST: Ensure motor is disabled and PWM is 0 before doing anything
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_RESET);  // EN pin LOW = motor disabled
+    
     // 1. Initialize Global State
     memset((void*)&servo, 0, sizeof(Servo_State_t));
     
@@ -87,17 +93,36 @@ void Servo_Init(void) {
     myMotor.pwm_period = 99; // Standard 0-100 scale (Assuming timer ARR=99)
     myMotor.htim_enc = &htim2;
 
-    // 3. Initialize Drivers
+    // 3. Initialize Drivers (motor stays disabled)
     Motor_Init(&myMotor);
     Motor_Encoder_Init(&myMotor);
-    Motor_ResetEncoderCount(&myMotor, 0);
-    Motor_Start(&myMotor);
+    Motor_ResetEncoderCount(&myMotor, 0);  // Reset encoder to 0
+    Motor_SetSpeed(&myMotor, 0);  // CRITICAL: Ensure PWM is 0
 
-    // 4. Initialize PID
+    // 4. Initialize PID and reset any accumulated state
     PID_Init(&posPID, servo_kp, servo_ki, servo_kd, servo_pid_limit, 1000.0f);
+    PID_Reset(&posPID);  // Clear any residual integral
     
-    // 5. Start Control Loop Interrupt
+    // 5. CRITICAL: Set initial target to current position (should be 0 after reset)
+    //    This ensures motor stays still at power-on
+    int32_t initial_pos = Motor_GetEncoderCount(&myMotor);
+    servo.target_pos = initial_pos;
+    servo.setpoint_pos = (float)initial_pos;
+    servo.actual_pos = initial_pos;
+    servo.is_at_target = 1;  // Start as "at target" so motor doesn't move
+    
+    // 6. Enable servo_enabled BEFORE starting interrupt
+    //    This way the ISR will see servo_enabled=1 from its first run
+    servo_enabled = 1;
+    
+    // 7. Start Control Loop Interrupt
     HAL_TIM_Base_Start_IT(&htim3);
+    
+    // 8. Short delay to let a few interrupt cycles run with 0 error
+    HAL_Delay(10);
+    
+    // 9. NOW enable the motor hardware (EN pin HIGH)
+    Motor_Start(&myMotor);
 }
 
 void Servo_SetTarget(int32_t position) {
@@ -163,6 +188,12 @@ float Servo_ComputeTrajectory(void) {
  * @brief  1kHz Control Loop (Called from TIM3 ISR)
  */
 void Servo_Update_1kHz(void) {
+    // 0. Check if servo is enabled
+    if (!servo_enabled) {
+        Motor_SetSpeed(&myMotor, 0);  // Ensure motor stays stopped
+        return;
+    }
+    
     // 1. Read Actual Position
     servo.actual_pos = Motor_GetEncoderCount(&myMotor);
 
@@ -176,8 +207,9 @@ void Servo_Update_1kHz(void) {
     // We are at target if both error is low AND velocity is near zero
     if (fabsf(pos_error) < SERVO_POS_TOLERANCE && fabsf(servo.setpoint_vel) < 1.0f) {
         servo.is_at_target = 1;
-        // Optional: Disable integral windup or relax motor if needed?
-        // For Servo, we usually want active holding, so we keep PID active.
+        // When at target with small error, output 0 and skip PID
+        Motor_SetSpeed(&myMotor, 0);
+        return;  // Exit early - no need to run PID
     } 
 
     // 5. Compute PID Output
@@ -223,19 +255,174 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 
 /*******************************************************************************
- * MAIN ENTRY POINT (Test Loop)
+ * ENCODER CONFIGURATION
+ * Encoder: 360 pulses per revolution
+ * Conversion: 1 degree = 1 pulse (360 pulses / 360 degrees)
+ ******************************************************************************/
+#define ENCODER_PULSES_PER_REV  360
+#define DEGREES_TO_PULSES(deg)  (deg)  // 1:1 mapping for 360 pulse encoder
+
+/*******************************************************************************
+ * UART COMMAND PARSER
+ ******************************************************************************/
+#define CMD_BUFFER_SIZE 64
+static char cmd_buffer[CMD_BUFFER_SIZE];
+static uint8_t cmd_index = 0;
+
+/**
+ * @brief  Convert degrees to encoder pulses
+ * @param  degrees: Target angle in degrees (can be negative)
+ * @return Number of encoder pulses
+ */
+static inline int32_t Degrees_To_Pulses(int32_t degrees) {
+    return degrees;  // 360 pulses/rev, so 1 degree = 1 pulse
+}
+
+/**
+ * @brief  Convert encoder pulses to degrees
+ * @param  pulses: Encoder pulse count
+ * @return Angle in degrees
+ */
+static inline float Pulses_To_Degrees(int32_t pulses) {
+    return (float)pulses;  // Direct 1:1 conversion
+}
+
+/**
+ * @brief  Parse and execute UART commands
+ * @note   Commands:
+ *         - "G<degrees>" or "g<degrees>": Go to absolute position (e.g., G90, G-45)
+ *         - "R<degrees>" or "r<degrees>": Rotate relative amount (e.g., R360, R-90)
+ *         - "Z" or "z": Zero/reset encoder position
+ *         - "S" or "s": Stop and hold current position
+ *         - "H" or "h": Show help
+ *         - "P" or "p": Print current position
+ */
+static void Process_Command(char* cmd) {
+    if (cmd[0] == '\0') return;
+    
+    char cmd_type = cmd[0];
+    int32_t value = 0;
+    
+    switch (cmd_type) {
+        case 'G':
+        case 'g':
+            // Go to absolute position (degrees)
+            value = atoi(&cmd[1]);
+            UART_Debug_Printf("[CMD] Go to %ld degrees (%ld pulses)\r\n", value, Degrees_To_Pulses(value));
+            Servo_SetTarget(Degrees_To_Pulses(value));
+            break;
+            
+        case 'R':
+        case 'r':
+            // Rotate relative amount (degrees)
+            value = atoi(&cmd[1]);
+            {
+                int32_t new_target = servo.target_pos + Degrees_To_Pulses(value);
+                UART_Debug_Printf("[CMD] Rotate %ld degrees (new target: %ld pulses)\r\n", value, new_target);
+                Servo_SetTarget(new_target);
+            }
+            break;
+            
+        case 'Z':
+        case 'z':
+            // Zero encoder
+            UART_Debug_Printf("[CMD] Zeroing encoder position\r\n");
+            Motor_ResetEncoderCount(&myMotor, 0);
+            servo.target_pos = 0;
+            servo.setpoint_pos = 0.0f;
+            servo.setpoint_vel = 0.0f;
+            servo.is_at_target = 1;
+            break;
+            
+        case 'S':
+        case 's':
+            // Stop and hold current position
+            {
+                int32_t current = Motor_GetEncoderCount(&myMotor);
+                UART_Debug_Printf("[CMD] Stop and hold at %ld pulses (%.1f degrees)\r\n", 
+                    current, Pulses_To_Degrees(current));
+                Servo_SetTarget(current);
+            }
+            break;
+            
+        case 'H':
+        case 'h':
+        case '?':
+            // Help
+            UART_Debug_Printf("\r\n=== Motor Position Control ===\r\n");
+            UART_Debug_Printf("Encoder: 360 pulses/rev (1 degree = 1 pulse)\r\n");
+            UART_Debug_Printf("Commands:\r\n");
+            UART_Debug_Printf("  G<deg>  - Go to absolute position (e.g., G90, G-45, G360)\r\n");
+            UART_Debug_Printf("  R<deg>  - Rotate relative (e.g., R90, R-180)\r\n");
+            UART_Debug_Printf("  Z       - Zero encoder (set current position as 0)\r\n");
+            UART_Debug_Printf("  S       - Stop and hold current position\r\n");
+            UART_Debug_Printf("  P       - Print current position\r\n");
+            UART_Debug_Printf("  H/?     - Show this help\r\n");
+            UART_Debug_Printf("Examples: G90 (go to 90°), R360 (rotate one full turn)\r\n\r\n");
+            break;
+            
+        case 'P':
+        case 'p':
+            // Print current position
+            UART_Debug_Printf("[INFO] Position: %ld pulses = %.1f degrees\r\n", 
+                servo.actual_pos, Pulses_To_Degrees(servo.actual_pos));
+            UART_Debug_Printf("[INFO] Target: %ld pulses = %.1f degrees\r\n", 
+                servo.target_pos, Pulses_To_Degrees(servo.target_pos));
+            UART_Debug_Printf("[INFO] At target: %s\r\n", servo.is_at_target ? "Yes" : "No");
+            break;
+            
+        default:
+            UART_Debug_Printf("[ERROR] Unknown command: %c. Type 'H' for help.\r\n", cmd_type);
+            break;
+    }
+}
+
+/**
+ * @brief  Non-blocking UART receive and command processing
+ */
+static void Poll_UART_Commands(void) {
+    uint8_t rx_byte;
+    
+    // Try to receive a byte (non-blocking)
+    if (HAL_UART_Receive(&huart2, &rx_byte, 1, 0) == HAL_OK) {
+        // Echo the character
+        HAL_UART_Transmit(&huart2, &rx_byte, 1, 10);
+        
+        if (rx_byte == '\r' || rx_byte == '\n') {
+            // End of command
+            if (cmd_index > 0) {
+                cmd_buffer[cmd_index] = '\0';
+                UART_Debug_Printf("\r\n");
+                Process_Command(cmd_buffer);
+                cmd_index = 0;
+            }
+        } else if (rx_byte == 0x7F || rx_byte == 0x08) {
+            // Backspace
+            if (cmd_index > 0) {
+                cmd_index--;
+                UART_Debug_Printf("\b \b");  // Erase character on terminal
+            }
+        } else if (cmd_index < CMD_BUFFER_SIZE - 1) {
+            // Add to buffer
+            cmd_buffer[cmd_index++] = (char)rx_byte;
+        }
+    }
+}
+
+/*******************************************************************************
+ * MAIN ENTRY POINT
  ******************************************************************************/
 void User_Entry(void)
 {
-    UART_Debug_Printf("=== Servo Mode Initializing ===\r\n");
+    UART_Debug_Printf("\r\n=== Motor Position Control System ===\r\n");
+    UART_Debug_Printf("Encoder: 360 pulses per revolution\r\n");
+    UART_Debug_Printf("Conversion: 1 degree = 1 encoder pulse\r\n\r\n");
 
-    // Initialize Servo System
-    // (GPIO Init is assumed done by main.c or we need to ensure local init safely)
+    // Initialize GPIO
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
     
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    // Re-verify these pins! 
     // DIR: PB13, EN: PC15
     GPIO_InitStruct.Pin = GPIO_PIN_13;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -246,70 +433,39 @@ void User_Entry(void)
     GPIO_InitStruct.Pin = GPIO_PIN_15;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+    // Initialize Servo System
     Servo_Init();
 
-    UART_Debug_Printf("=== Servo Mode Ready ===\r\n");
+    // Show help on startup
+    UART_Debug_Printf("=== System Ready ===\r\n");
+    UART_Debug_Printf("Type 'H' for help, or enter a command:\r\n");
+    UART_Debug_Printf("> ");
 
-    uint32_t last_print = 0;
-    
-    // Test Sequence Logic
-    uint8_t step = 0;
-    uint32_t wait_start = 0;
+    uint32_t last_status_print = 0;
+    uint8_t was_moving = 0;
 
     while (1) {
-        // Simple Debug Telemetry (10Hz)
-        if (HAL_GetTick() - last_print > 100) {
-            last_print = HAL_GetTick();
-            UART_Debug_Printf("Tgt:%ld Act:%ld Set:%.1f Vel:%.1f PWM:%.1f\r\n", 
-                servo.target_pos, servo.actual_pos, servo.setpoint_pos, servo.setpoint_vel, debug_last_pwm);
+        // Poll for UART commands
+        Poll_UART_Commands();
+        
+        // Print status when movement completes
+        if (!servo.is_at_target) {
+            was_moving = 1;
+        } else if (was_moving) {
+            was_moving = 0;
+            UART_Debug_Printf("[OK] Reached target: %ld deg\r\n> ", 
+                (int32_t)servo.actual_pos);
         }
-
-        // Servo Test Sequence: 0 -> 1000 -> 0 -> -1000 -> ...
-        switch (step) {
-            case 0:
-                UART_Debug_Printf(">>> Command: Go to 2000\r\n");
-                Servo_SetTarget(2000);
-                step++;
-                break;
-            case 1:
-                if (Servo_IsAtTarget()) {
-                    UART_Debug_Printf(">>> Reached 2000. Holding...\r\n");
-                    wait_start = HAL_GetTick();
-                    step++;
-                }
-                break;
-            case 2:
-                if (HAL_GetTick() - wait_start > 2000) { // Hold for 2s
-                    UART_Debug_Printf(">>> Command: Go to 0\r\n");
-                    Servo_SetTarget(0);
-                    step++;
-                }
-                break;
-            case 3:
-                if (Servo_IsAtTarget()) {
-                     UART_Debug_Printf(">>> Reached 0. Holding...\r\n");
-                    wait_start = HAL_GetTick();
-                    step++;
-                }
-                break;
-            case 4:
-                if (HAL_GetTick() - wait_start > 2000) {
-                     UART_Debug_Printf(">>> Command: Go to -2000\r\n");
-                    Servo_SetTarget(-2000);
-                    step++;
-                }
-                break;
-            case 5:
-                if (Servo_IsAtTarget()) {
-                    wait_start = HAL_GetTick();
-                    step++;
-                }
-                break;
-            case 6:
-                if (HAL_GetTick() - wait_start > 2000) {
-                    step = 0; // Loop back
-                }
-                break;
+        
+        // Periodic status update (every 500ms, only when moving)
+        if (!servo.is_at_target && (HAL_GetTick() - last_status_print > 500)) {
+            last_status_print = HAL_GetTick();
+            // Use integer format for embedded printf compatibility
+            UART_Debug_Printf("[MOVING] Pos:%ld Tgt:%ld Vel:%ld PWM:%ld\r\n", 
+                (int32_t)servo.actual_pos, 
+                (int32_t)servo.target_pos,
+                (int32_t)servo.setpoint_vel,
+                (int32_t)debug_last_pwm);
         }
     }
 }

@@ -6,8 +6,23 @@ void Motor_Init(Motor_Handle_t *motor) {
     HAL_GPIO_WritePin(motor->en_port, motor->en_pin, GPIO_PIN_RESET);
     // Default to forward direction
     HAL_GPIO_WritePin(motor->dir_port, motor->dir_pin, GPIO_PIN_SET); // Assume high level is forward
+    
+    // CRITICAL: Set PWM duty cycle to 0 BEFORE starting PWM
+    __HAL_TIM_SET_COMPARE(motor->htim, motor->channel, 0);
+    
     // Start PWM signal
     HAL_TIM_PWM_Start(motor->htim, motor->channel);
+    
+    // CRITICAL FIX: For advanced timers (TIM1/TIM8), enable Main Output Enable (MOE)
+    // Without MOE enabled, the PWM output pin will be in high-impedance state
+    // which can cause unpredictable behavior with motor drivers!
+    if (motor->htim->Instance == TIM1
+#ifdef TIM8
+        || motor->htim->Instance == TIM8
+#endif
+    ) {
+        __HAL_TIM_MOE_ENABLE(motor->htim);
+    }
     
     motor->total_count = 0;
     motor->last_counter = 0;
@@ -44,7 +59,10 @@ void Motor_Start(Motor_Handle_t *motor) {
 }
 
 void Motor_Stop(Motor_Handle_t *motor) {
-    // Disable motor
+    // First, set PWM to 0 to ensure no PWM output
+    __HAL_TIM_SET_COMPARE(motor->htim, motor->channel, 0);
+    
+    // Disable motor via enable pin
     HAL_GPIO_WritePin(motor->en_port, motor->en_pin, GPIO_PIN_RESET);
 }
 
