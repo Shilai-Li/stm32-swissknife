@@ -20,7 +20,7 @@ typedef struct {
 void PID_Init(PIDController* pid, float p, float i, float d, float limit, float ramp);
 
 // Main PID calculation function
-float PID_Compute(PIDController* pid, float error);
+float PID_Compute(PIDController* pid, float error, float dt);
 
 // Reset PID controller
 void PID_Reset(PIDController* pid);

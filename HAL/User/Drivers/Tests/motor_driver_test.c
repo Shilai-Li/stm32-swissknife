@@ -142,24 +142,18 @@ float Servo_ComputeTrajectory(void) {
     // 1. Calculate Error Distance from Setpoint to Target
     float error = (float)servo.target_pos - servo.setpoint_pos;
     
-    // 2. Determine Optimal Velocity to stop exactly at target
-    // V_optimal = sqrt(2 * a * d) * sign(d)
-    // We limit this by Max Velocity
-    float desired_vel;
-    float stop_dist_required = (servo.setpoint_vel * servo.setpoint_vel) / (2.0f * SERVO_DECELERATION);
-    
-    // Simple Trapezoidal Logic:
-    // If we are close enough to start braking, we aim for V=0
-    // A robust way is: TargetVel = K * Error, but clamped by Physics.
-    
-    // Let's use the robust "Square Root" method for time-optimality:
-    // This allows max acceleration until we MUST brake.
-    if (error == 0.0f) return servo.setpoint_pos;
+    // Snap to target if error is very small to prevent jitter
+    if (fabsf(error) < 0.5f) {
+        servo.setpoint_vel = 0.0f;
+        return (float)servo.target_pos;
+    }
 
     float direction = (error > 0.0f) ? 1.0f : -1.0f;
     float abs_error = fabsf(error);
 
+    // 2. Determine Optimal Velocity to stop exactly at target
     // Calculate max allowed velocity at this distance to be able to stop in time
+    // V = sqrt(2 * a * d)
     float max_vel_at_dist = sqrtf(2.0f * SERVO_DECELERATION * abs_error);
     
     // Clamp to global max velocity
@@ -216,7 +210,7 @@ void Servo_Update_1kHz(void) {
     // Check Deadband
     if (fabsf(pos_error) < 1.0f) pos_error = 0.0f;
     
-    float pid_out = PID_Compute(&posPID, pos_error);
+    float pid_out = PID_Compute(&posPID, pos_error, CONTROL_DT);
     debug_last_pwm = pid_out;
 
     // 6. Feedforward (Static Friction Compensation) - Optional
