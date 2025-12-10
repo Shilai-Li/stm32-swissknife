@@ -54,7 +54,9 @@ volatile uint32_t debug_counter = 0;
 volatile float debug_last_pwm = 0.0f;
 
 /* Servo Enable Flag - prevents motor output until fully initialized */
+/* Servo Enable Flag - prevents motor output until fully initialized */
 volatile uint8_t servo_enabled = 0;
+volatile uint8_t servo_error_state = 0; // 0=OK, 1=Stall/Runaway Detected
 
 /*******************************************************************************
  * HELPER FUNCTIONS
@@ -64,6 +66,7 @@ void Servo_SetTarget(int32_t position);
 uint8_t Servo_IsAtTarget(void);
 void Servo_Update_1kHz(void);
 float Servo_ComputeTrajectory(void);
+void Check_Runaway_Condition(float pid_output, int32_t current_pos);
 
 /*******************************************************************************
  * IMPLEMENTATION
@@ -213,6 +216,10 @@ void Servo_Update_1kHz(void) {
     float pid_out = PID_Compute(&posPID, pos_error, CONTROL_DT);
     debug_last_pwm = pid_out;
 
+    // Safety: Check for runaway/stall condition
+    Check_Runaway_Condition(pid_out, servo.actual_pos);
+    if (servo_error_state) return; // Stop if error triggered
+
     // 6. Feedforward (Static Friction Compensation) - Optional
     // if (pos_error > 0) pid_out += 2.0f;
     // if (pos_error < 0) pid_out -= 2.0f;
@@ -234,6 +241,39 @@ void Servo_Update_1kHz(void) {
     }
     
     Motor_SetSpeed(&myMotor, pwm_val);
+}
+
+// Detection variables kept static to maintain state between interrupts
+static uint32_t high_load_duration = 0;
+static int32_t  load_start_pos = 0;
+
+void Check_Runaway_Condition(float pid_output, int32_t current_pos) {
+    // If PWM is high (absolute value > 80%) indicating high effort
+    if (fabsf(pid_output) > 80.0f) {
+        if (high_load_duration == 0) {
+            // First tick of high load, record position
+            load_start_pos = current_pos;
+        }
+        
+        high_load_duration++;
+        
+        // If high load persists for 500ms (500 ticks @ 1kHz)
+        if (high_load_duration > 500) {
+            int32_t moved = abs(current_pos - load_start_pos);
+            
+            // If moved less than 10 pulses (about 10 degrees) in 500ms of FULL POWER
+            // This clearly indicates a stall or encoder failure (runaway)
+            if (moved < 10) {
+                // FAILURE DETECTED
+                servo_enabled = 0;       // Disable control
+                servo_error_state = 1;   // Set error flag
+                Motor_Stop(&myMotor);    // Kill hardware output immediately
+            }
+        }
+    } else {
+        // Load is normal, reset counter
+        high_load_duration = 0;
+    }
 }
 
 
@@ -439,6 +479,19 @@ void User_Entry(void)
     uint8_t was_moving = 0;
 
     while (1) {
+        // Check for error state
+        if (servo_error_state) {
+            UART_Debug_Printf("\r\n[CRITICAL] MOTOR STALL/RUNAWAY DETECTED!\r\n");
+            UART_Debug_Printf("PWM > 80%% but Position did not change for 500ms.\r\n");
+            UART_Debug_Printf("Possible causes: 1. Motor unconnected 2. Encoder disconnected 3. Mechanical jam\r\n");
+            UART_Debug_Printf("System Halted. Reset board to restart.\r\n");
+            
+            while(1) {
+                // Blink LED or just hang
+                HAL_Delay(1000);
+            }
+        }
+
         // Poll for UART commands
         Poll_UART_Commands();
         
