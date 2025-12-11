@@ -7,6 +7,7 @@ add_library(UserDrivers OBJECT
     Src/led_driver.c
     Src/motor_driver.c
     Src/pid.c
+    Src/servo.c
     Src/ssd1306.c
     Src/ssd1306_custom.c
     Src/ssd1306_fonts.c
