@@ -12,21 +12,6 @@ void User_Entry(void)
     UART_Debug_Printf("Encoder: 360 pulses per revolution\r\n");
     UART_Debug_Printf("Conversion: 1 degree = 1 encoder pulse\r\n\r\n");
 
-    // Initialize GPIO
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    // DIR: PB13, EN: PC15
-    GPIO_InitStruct.Pin = GPIO_PIN_13;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_15;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
     // Initialize Servo System
     Servo_Init();
 
