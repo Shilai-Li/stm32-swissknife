@@ -1,6 +1,8 @@
 add_library(User OBJECT
+        # Components
         Components/servo.c
 
+        # Drivers
         Drivers/delay_driver.c
         Drivers/dht11_driver.c
         Drivers/key_driver.c
@@ -11,11 +13,13 @@ add_library(User OBJECT
         Drivers/ssd1306_custom.c
         Drivers/ssd1306_fonts.c
         Drivers/ssd1306_fonts_custom.c
-        Drivers/Tests/ssd1306_tests.c
         Drivers/uart_driver.c
 
+        # Middlewares
+        # Middlewares/Algorithms
         Middlewares/Algorithms/pid.c
 
+        # Middlewares/Protocols
         Middlewares/Protocols/crsf.c
 )
 
