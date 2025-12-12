@@ -1,7 +1,3 @@
-#include "motor_driver.h"
-
-#include <sys/stat.h>
-
 #include "uart_driver.h"
 #include "servo.h"
 

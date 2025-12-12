@@ -463,34 +463,37 @@ void Test_Encoder_Readings(void) {
                 UART_Debug_Printf("\r\nExiting Test Mode.\r\n> ");
                 break;
             }
-            else if (rx_byte == 'w' || rx_byte == 'W') {
-                current_pwm += 10;
-                if (current_pwm > 100) current_pwm = 100;
-                
-                if (current_pwm >= 0) {
-                    Motor_SetDirection(&myMotor, 1);
-                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
-                } else {
-                    Motor_SetDirection(&myMotor, 0);
-                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
-                }
-            }
-            else if (rx_byte == 's' || rx_byte == 'S') {
-                current_pwm -= 10;
-                if (current_pwm < -100) current_pwm = -100;
-                
-                if (current_pwm >= 0) {
-                    Motor_SetDirection(&myMotor, 1);
-                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
-                } else {
-                    Motor_SetDirection(&myMotor, 0);
-                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
-                }
-            }
-            else if (rx_byte == ' ') {
-                current_pwm = 0;
-                Motor_Stop(&myMotor);
-            }
+
+            if (rx_byte == 'w' || rx_byte == 'W') {
+                 current_pwm += 10;
+                 if (current_pwm > 100) current_pwm = 100;
+
+                 if (current_pwm >= 0) {
+                     Motor_SetDirection(&myMotor, 1);
+                     Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                 } else {
+                     Motor_SetDirection(&myMotor, 0);
+                     Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                 }
+             }
+
+            if (rx_byte == 's' || rx_byte == 'S') {
+                 current_pwm -= 10;
+                 if (current_pwm < -100) current_pwm = -100;
+
+                 if (current_pwm >= 0) {
+                     Motor_SetDirection(&myMotor, 1);
+                     Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                 } else {
+                     Motor_SetDirection(&myMotor, 0);
+                     Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                 }
+             }
+
+             if (rx_byte == ' ') {
+                 current_pwm = 0;
+                 Motor_Stop(&myMotor);
+             }
         }
     }
     
