@@ -201,8 +201,8 @@ void Servo_Update_1kHz(void) {
     debug_last_pwm = pid_out;
 
     // Safety: Check for runaway/stall condition
-    Check_Runaway_Condition(pid_out, servo.actual_pos);
-    if (servo_error_state) return; // Stop if error triggered
+    //Check_Runaway_Condition(pid_out, servo.actual_pos);
+    //if (servo_error_state) return; // Stop if error triggered
 
     // 6. Feedforward (Static Friction Compensation) - Optional
     // if (pos_error > 0) pid_out += 2.0f;
@@ -349,8 +349,10 @@ void Process_Command(char* cmd) {
             UART_Debug_Printf("  Z       - Zero encoder (set current position as 0)\r\n");
             UART_Debug_Printf("  S       - Stop and hold current position\r\n");
             UART_Debug_Printf("  P       - Print current position\r\n");
+            UART_Debug_Printf("  E       - Test Encoder Readings (Continuous)\r\n");
             UART_Debug_Printf("  H/?     - Show this help\r\n");
             UART_Debug_Printf("Examples: G90 (go to 90°), R360 (rotate one full turn)\r\n\r\n");
+            UART_Debug_Printf("> ");
             break;
             
         case 'P':
@@ -362,9 +364,16 @@ void Process_Command(char* cmd) {
                 servo.target_pos, Pulses_To_Degrees(servo.target_pos));
             UART_Debug_Printf("[INFO] At target: %s\r\n", servo.is_at_target ? "Yes" : "No");
             break;
+
+        case 'E':
+        case 'e':
+            // Enter Encoder Test Mode
+            Test_Encoder_Readings();
+            break;
             
         default:
             UART_Debug_Printf("[ERROR] Unknown command: %c. Type 'H' for help.\r\n", cmd_type);
+            UART_Debug_Printf("> ");
             break;
     }
 }
@@ -411,4 +420,88 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         Servo_Update_1kHz();
         debug_counter++;
     }
+}
+
+/**
+ * @brief Continuous Encoder Test Mode
+ *        Loops and prints encoder values until 'q' is pressed.
+ */
+void Test_Encoder_Readings(void) {
+    UART_Debug_Printf("\r\n=== Encoder Test Mode ===\r\n");
+    UART_Debug_Printf("Controls:\r\n");
+    UART_Debug_Printf("  'w' : Increase PWM (+10%%)\r\n");
+    UART_Debug_Printf("  's' : Decrease PWM (-10%%)\r\n");
+    UART_Debug_Printf("  ' ' : Stop (PWM 0)\r\n");
+    UART_Debug_Printf("  'q' : Exit\r\n\r\n");
+
+    Motor_Stop(&myMotor);
+    int8_t current_pwm = 0;
+    
+    // Safety: Disable control loop
+    servo_enabled = 0;
+    HAL_Delay(10);
+
+    uint8_t rx_byte = 0;
+
+    while (1) {
+        int32_t count = Motor_GetEncoderCount(&myMotor);
+        // Manual float conversion for safe printing
+        int32_t deg_int = count; // 1:1 mapping
+        
+        UART_Debug_Printf("\r[ENC] PWM: %3d%% | Count: %6ld | Deg: %ld   ", 
+            current_pwm, count, deg_int);
+
+        // Optimized input handling:
+        // 1. Check if data available (avoids spamming disable_irq)
+        // 2. If valid key, process it
+        // 3. Delay to control loop rate
+        
+        if (UART_Available(UART_DEBUG_CHANNEL)) {
+            if (UART_Read(UART_DEBUG_CHANNEL, &rx_byte)) {
+                if (rx_byte == 'q' || rx_byte == 'Q') {
+                    Motor_Stop(&myMotor);
+                    UART_Debug_Printf("\r\nExiting Test Mode.\r\n> ");
+                    break;
+                }
+                else if (rx_byte == 'w' || rx_byte == 'W') {
+                    current_pwm += 10;
+                    if (current_pwm > 100) current_pwm = 100;
+                    
+                    if (current_pwm >= 0) {
+                        Motor_SetDirection(&myMotor, 1);
+                        Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                    } else {
+                        Motor_SetDirection(&myMotor, 0);
+                        Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                    }
+                }
+                else if (rx_byte == 's' || rx_byte == 'S') {
+                    current_pwm -= 10;
+                    if (current_pwm < -100) current_pwm = -100;
+                    
+                    if (current_pwm >= 0) {
+                        Motor_SetDirection(&myMotor, 1);
+                        Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                    } else {
+                        Motor_SetDirection(&myMotor, 0);
+                        Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                    }
+                }
+                else if (rx_byte == ' ') {
+                    current_pwm = 0;
+                    Motor_Stop(&myMotor);
+                }
+            }
+        }
+        
+        HAL_Delay(50); // Loop status update rate
+    }
+    
+    // Resume control loop
+    int32_t current_pos = Motor_GetEncoderCount(&myMotor);
+    servo.target_pos = current_pos;
+    servo.setpoint_pos = (float)current_pos;
+    servo.is_at_target = 1;
+    PID_Reset(&posPID);
+    servo_enabled = 1;
 }

@@ -1,5 +1,7 @@
 #include "motor_driver.h"
 
+#include <sys/stat.h>
+
 #include "uart_driver.h"
 #include "servo.h"
 
@@ -43,7 +45,8 @@ void User_Entry(void)
         // Print status when movement completes
         if (!servo.is_at_target) {
             was_moving = 1;
-        } else if (was_moving) {
+        }
+        else if (was_moving) {
             was_moving = 0;
             UART_Debug_Printf("[OK] Reached target: %ld deg\r\n> ", 
                 (int32_t)servo.actual_pos);

@@ -81,7 +81,6 @@ static inline float Pulses_To_Degrees(int32_t pulses);
 void Process_Command(char* cmd);
 void Poll_UART_Commands(void);
 
-/* Main Entry Point */
-void User_Entry(void);
+void Test_Encoder_Readings(void);
 
 #endif /* SERVO_H */
