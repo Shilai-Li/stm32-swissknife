@@ -10,16 +10,12 @@ set(USER_SOURCES
 )
 
 # Applications
-if(TEST_CASE STREQUAL "dfaf")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE Applications/)
-endif ()
+
 
 # Components
 if (TEST_CASE STREQUAL "servo_test")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE Components/Tests/servo_test.c)
     list(APPEND USER_SOURCES Components/servo.c)
-elseif (TEST_CASE STREQUAL "asdfas")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE Components/Tests)
 endif ()
 
 # Drivers
