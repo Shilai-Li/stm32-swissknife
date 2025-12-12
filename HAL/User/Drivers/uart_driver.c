@@ -11,43 +11,27 @@ static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {
 #if defined USE_UART1
     &huart1,
-#else
-    NULL,
 #endif
 #if defined USE_UART2
     &huart2,
-#else
-    NULL,
 #endif
 #if defined USE_UART3
     &huart3,
-#else
-    NULL,
 #endif
 #if defined USE_UART4
     &huart4,
-#else
-    NULL,
 #endif
 #if defined USE_UART5
     &huart5,
-#else
-    NULL,
 #endif
 #if defined USE_UART6
     &huart6,
-#else
-    NULL,
 #endif
 #if defined USE_UART7
     &huart7,
-#else
-    NULL,
 #endif
 #if defined USE_UART8
     &huart8,
-#else
-    NULL,
 #endif
 };
 
@@ -170,29 +154,4 @@ void UART_Debug_Printf(const char *fmt, ...)
 
     if (len > 0)
         UART_Send(UART_DEBUG_CHANNEL, (uint8_t *)buffer, len);
-}
-
-void UART_Test(void)
-{
-    UART_Init();
-
-    UART_Debug_Printf("System initialized successfully.\r\n");
-
-    uint8_t rx_data;
-
-    while (1)
-    {
-        UART_Debug_Printf("Heartbeat: %lu ms\r\n", HAL_GetTick());
-        HAL_Delay(1000);
-
-        if (UART_Available(UART_CHANNEL_1))
-        {
-            if (UART_Read(UART_CHANNEL_1, &rx_data))
-            {
-                // Echo received byte back to UART_CHANNEL_1
-                UART_Send(UART_CHANNEL_1, &rx_data, 1);
-                UART_Debug_Printf(" [Echoed: %c]\r\n", rx_data);
-            }
-        }
-    }
 }

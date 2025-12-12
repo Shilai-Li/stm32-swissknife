@@ -1,5 +1,3 @@
-#if 0
-
 #include "delay_driver.h"
 
 void User_Entry(void)
@@ -9,5 +7,3 @@ void User_Entry(void)
         HAL_Delay(1000);
     }
 }
-
-#endif

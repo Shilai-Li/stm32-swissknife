@@ -8,8 +8,8 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USE_UART1
-// #define USE_UART2
+// #define USE_UART1
+#define USE_UART2
 // #define USE_UART3
 // #define USE_UART4
 // #define USE_UART5
@@ -20,19 +20,26 @@ extern "C" {
 typedef enum {
 #if defined USE_UART1
     UART_CHANNEL_1,
-#elif defined USE_UART2
+#endif
+#if defined USE_UART2
     UART_CHANNEL_2,
-#elif defined
+#endif
+#if defined USE_UART3
     UART_CHANNEL_3,
-#elif defined USE_UART4
+#endif
+#if defined USE_UART4
     UART_CHANNEL_4,
-#elif defined USE_UART5
+#endif
+#if defined USE_UART5
     UART_CHANNEL_5,
-#elif defined USE_UART6
+#endif
+#if defined USE_UART6
     UART_CHANNEL_6,
-#elif defined USE_UART7
+#endif
+#if defined USE_UART7
     UART_CHANNEL_7,
-#elif defined USE_UART8
+#endif
+#if defined USE_UART8
     UART_CHANNEL_8,
 #endif
     UART_CHANNEL_MAX
@@ -46,7 +53,7 @@ typedef enum {
 #endif
 
 #ifndef UART_DEBUG_CHANNEL
-#define UART_DEBUG_CHANNEL UART_CHANNEL_1
+#define UART_DEBUG_CHANNEL UART_CHANNEL_2
 #endif
 
 typedef struct {
@@ -66,7 +73,6 @@ uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);
 bool UART_Receive(UART_Channel channel, uint8_t *out, uint32_t timeout_ms);
 void UART_Debug_Printf(const char *fmt, ...);
-void UART_Test(void);
 
 #ifdef __cplusplus
 }
