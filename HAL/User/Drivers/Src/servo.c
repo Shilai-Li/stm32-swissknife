@@ -350,8 +350,9 @@ void Process_Command(char* cmd) {
             UART_Debug_Printf("  S       - Stop and hold current position\r\n");
             UART_Debug_Printf("  P       - Print current position\r\n");
             UART_Debug_Printf("  E       - Test Encoder Readings (Continuous)\r\n");
+            UART_Debug_Printf("  L<val>  - Set Max PWM Limit (0-100%%)\r\n");
             UART_Debug_Printf("  H/?     - Show this help\r\n");
-            UART_Debug_Printf("Examples: G90 (go to 90°), R360 (rotate one full turn)\r\n\r\n");
+            UART_Debug_Printf("Examples: G90 (go to 90°), R360 (rotate one full turn), L80 (limit power to 80%%)\r\n\r\n");
             UART_Debug_Printf("> ");
             break;
             
@@ -369,6 +370,21 @@ void Process_Command(char* cmd) {
         case 'e':
             // Enter Encoder Test Mode
             Test_Encoder_Readings();
+            break;
+            
+            break;
+
+        case 'L':
+        case 'l':
+            // Set Max PWM Limit (PID Limit)
+            value = atoi(&cmd[1]);
+            if (value < 0) value = 0;
+            if (value > 100) value = 100;
+            
+            servo_pid_limit = (float)value;
+            posPID.limit = servo_pid_limit;
+            
+            UART_Debug_Printf("[CMD] Set PWM Limit to %ld%%\r\n", value);
             break;
             
         default:
@@ -439,6 +455,9 @@ void Test_Encoder_Readings(void) {
     // Safety: Disable control loop
     servo_enabled = 0;
     HAL_Delay(10);
+    
+    // Explicitly enable motor hardware (driver EN pin)
+    Motor_Start(&myMotor); 
 
     uint8_t rx_byte = 0;
 
