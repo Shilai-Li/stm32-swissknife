@@ -434,7 +434,6 @@ void Test_Encoder_Readings(void) {
     UART_Debug_Printf("  ' ' : Stop (PWM 0)\r\n");
     UART_Debug_Printf("  'q' : Exit\r\n\r\n");
 
-    Motor_Stop(&myMotor);
     int8_t current_pwm = 0;
     
     // Safety: Disable control loop
@@ -443,58 +442,53 @@ void Test_Encoder_Readings(void) {
 
     uint8_t rx_byte = 0;
 
+    // Flush any pending data
+    while(HAL_UART_Receive(&huart2, &rx_byte, 1, 0) == HAL_OK);
+
     while (1) {
         int32_t count = Motor_GetEncoderCount(&myMotor);
-        // Manual float conversion for safe printing
-        int32_t deg_int = count; // 1:1 mapping
+        int32_t deg_int = count; 
         
         UART_Debug_Printf("\r[ENC] PWM: %3d%% | Count: %6ld | Deg: %ld   ", 
             current_pwm, count, deg_int);
 
-        // Optimized input handling:
-        // 1. Check if data available (avoids spamming disable_irq)
-        // 2. If valid key, process it
-        // 3. Delay to control loop rate
-        
-        if (UART_Available(UART_DEBUG_CHANNEL)) {
-            if (UART_Read(UART_DEBUG_CHANNEL, &rx_byte)) {
-                if (rx_byte == 'q' || rx_byte == 'Q') {
-                    Motor_Stop(&myMotor);
-                    UART_Debug_Printf("\r\nExiting Test Mode.\r\n> ");
-                    break;
-                }
-                else if (rx_byte == 'w' || rx_byte == 'W') {
-                    current_pwm += 10;
-                    if (current_pwm > 100) current_pwm = 100;
-                    
-                    if (current_pwm >= 0) {
-                        Motor_SetDirection(&myMotor, 1);
-                        Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
-                    } else {
-                        Motor_SetDirection(&myMotor, 0);
-                        Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
-                    }
-                }
-                else if (rx_byte == 's' || rx_byte == 'S') {
-                    current_pwm -= 10;
-                    if (current_pwm < -100) current_pwm = -100;
-                    
-                    if (current_pwm >= 0) {
-                        Motor_SetDirection(&myMotor, 1);
-                        Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
-                    } else {
-                        Motor_SetDirection(&myMotor, 0);
-                        Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
-                    }
-                }
-                else if (rx_byte == ' ') {
-                    current_pwm = 0;
-                    Motor_Stop(&myMotor);
+        // Blocking receive with very short timeout (1ms) to keep loop responsive
+        // but ensure we catch characters.
+        if (HAL_UART_Receive(&huart2, &rx_byte, 1, 50) == HAL_OK) {
+             if (rx_byte == 'q' || rx_byte == 'Q') {
+                Motor_Stop(&myMotor);
+                UART_Debug_Printf("\r\nExiting Test Mode.\r\n> ");
+                break;
+            }
+            else if (rx_byte == 'w' || rx_byte == 'W') {
+                current_pwm += 10;
+                if (current_pwm > 100) current_pwm = 100;
+                
+                if (current_pwm >= 0) {
+                    Motor_SetDirection(&myMotor, 1);
+                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                } else {
+                    Motor_SetDirection(&myMotor, 0);
+                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
                 }
             }
+            else if (rx_byte == 's' || rx_byte == 'S') {
+                current_pwm -= 10;
+                if (current_pwm < -100) current_pwm = -100;
+                
+                if (current_pwm >= 0) {
+                    Motor_SetDirection(&myMotor, 1);
+                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                } else {
+                    Motor_SetDirection(&myMotor, 0);
+                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                }
+            }
+            else if (rx_byte == ' ') {
+                current_pwm = 0;
+                Motor_Stop(&myMotor);
+            }
         }
-        
-        HAL_Delay(50); // Loop status update rate
     }
     
     // Resume control loop
