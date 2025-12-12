@@ -43,49 +43,6 @@ add_subdirectory(cmake/stm32cubemx)
 # Add User Drivers
 add_subdirectory(User)
 
-# Test Case Selection
-set(TEST_CASE "servo_test" CACHE STRING "Select which test to run (CRSF, UART, BUZZER, DELAY, DHT11, KEY, LED, MOTOR, SSD1306, SSD1306_CUSTOM)")
-message("Selected Test Case: ${TEST_CASE}")
-
-# Applications
-if(TEST_CASE STREQUAL "dfaf")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Applications/)
-endif ()
-
-# Comopents
-if (TEST_CASE STREQUAL "servo_test")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Components/Tests/servo_test.c)
-elseif (TEST_CASE STREQUAL "asdfas")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Components/Tests)
-endif ()
-
-# Drivers
-if (TEST_CASE STREQUAL "CRSF")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/crsf_protocol_test.c)
-elseif(TEST_CASE STREQUAL "UART")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/uart_driver_test.c)
-elseif(TEST_CASE STREQUAL "BUZZER")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/buzzer_driver_test.c)
-elseif(TEST_CASE STREQUAL "DELAY")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/delay_driver_test.c)
-elseif(TEST_CASE STREQUAL "DHT11")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/dht11_driver_test.c)
-elseif(TEST_CASE STREQUAL "KEY")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/key_driver_test.c)
-elseif(TEST_CASE STREQUAL "LED")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/led_driver_test.c)
-elseif(TEST_CASE STREQUAL "MOTOR")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/motor_driver_test.c)
-elseif(TEST_CASE STREQUAL "SSD1306")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/ssd1306_test.c)
-elseif(TEST_CASE STREQUAL "SSD1306_CUSTOM")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/ssd1306_custom_test.c)
-else()
-    # Default to CRSF if nothing matches, or you can leave it empty if you want to build nothing
-    message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/crsf_protocol_test.c)
-endif()
-
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
