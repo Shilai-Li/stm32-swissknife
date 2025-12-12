@@ -1,11 +1,11 @@
 /*
- * CubeMX Configuration for Stepper Motor Example
+ * CubeMX Configuration for Stepper Motor Example (Ported to STM32F103C8T6)
  * -------------------------------------------
  * 1. RCC Configuration:
- *    - High Speed Clock (HSE): Crystal/Ceramic Resonator (25 MHz)
- *    - System Clock: 180 MHz (PLL: M=25, N=360, P=2, Q=8)
- *    - APB1 Prescaler: /4 (45 MHz) -> Timer Clock: 90 MHz
- *    - APB2 Prescaler: /2 (90 MHz)
+ *    - High Speed Clock (HSE): Crystal/Ceramic Resonator (8 MHz)
+ *    - System Clock: 72 MHz (PLL: Mul=9)
+ *    - APB1 Prescaler: /2 (36 MHz) -> Timer Clock: 72 MHz
+ *    - APB2 Prescaler: /1 (72 MHz)
  *
  * 2. SYS Configuration:
  *    - Debug: Serial Wire
@@ -21,7 +21,7 @@
  *
  * 4. Timers:
  *    - TIM3 (Internal Clock):
- *      - Prescaler: 71 (Count Freq: 90MHz / 72 = 1.25 MHz)
+ *      - Prescaler: 57 (Count Freq: 72MHz / 58 ~= 1.25 MHz)
  *      - Period: 5000  (Update Freq: 1.25MHz / 5000 = 250 Hz)
  *      - NVIC: TIM3 global interrupt enabled
  *
@@ -30,7 +30,8 @@
  *    - PB1: Output Push Pull, Pull-Up, High Speed (LED0 / Dir for Motor)
  *    - PA0: Input, Pull-Down (KEY0)
  *    - PC13: Input, Pull-Up (KEY1)
- *    - PH2, PH3: Input, Pull-Up (KEY2, WK_UP)
+ *    - PA1: Input, Pull-Up (KEY2) - [Remapped from PH2]
+ *    - PA2: Input, Pull-Up (WK_UP) - [Remapped from PH3]
  *
  * 6. Critical Integration Steps:
  *    a. Include Paths: Add these directories to your IDE's Include Path:
@@ -44,6 +45,19 @@
  *    b. Interrupt Configuration:
  *       - EXCLUDE or COMMENT OUT `TIM3_IRQHandler` and `USART1_IRQHandler` 
  *         in `stm32f4xx_it.c`. (They are defined in timer.c and usart.c)
+ *
+ *    c. STM32F103C8T6 Portability Notes:
+ *       1. Hardware Incompatibility: 
+ *          - F103C8T6 (48-pin) has NO Port H.
+ *          - Action: Remap KEY2 (PH2) and WK_UP (PH3) to available pins (e.g., PA1, PA2) in key.c.
+ *       2. Software Configuration:
+ *          - Include Files: Change "stm32f4xx.h" to "stm32f1xx.h" in sys.h.
+ *          - Timer Clock: F103 TIM3 runs at 72MHz (F4 was 90MHz).
+ *            - F4: 90MHz / 71 = 1.25MHz.
+ *            - F1: 72MHz / 57 ~= 1.25MHz.
+ *            - Action: Change TIM3_Init prescaler in main.c logic.
+ *       3. Code Cleanup:
+ *          - Ensure sys.c avoids F4-specific registers.
  */
 #include "sys.h"
 #include "delay.h"
@@ -62,7 +76,7 @@ void User_Entry(void)
     // uart_init(115200);              //Initialize USART (Handled by MX_USART1_UART_Init)
     LED_Init();                     //Initialize LED
     KEY_Init();                     //Initialize buttons
-    TIM3_Init(5000,71);       //2KHz
+    TIM3_Init(5000,57);       //2KHz (72MHz/57+1 ~= 1.25MHz, similar to 90MHz/71+1)
     dir=0;//     Direction                          
     while(1)
     {

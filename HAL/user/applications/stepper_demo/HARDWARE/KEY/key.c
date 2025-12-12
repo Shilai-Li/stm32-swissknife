@@ -22,8 +22,13 @@ void KEY_Init(void)
     GPIO_Initure.Speed=GPIO_SPEED_HIGH;     //High speed
     HAL_GPIO_Init(GPIOC,&GPIO_Initure);
     
-    GPIO_Initure.Pin=GPIO_PIN_2|GPIO_PIN_3; //PH2,3
-    HAL_GPIO_Init(GPIOH,&GPIO_Initure);
+    // GPIO_Initure.Pin=GPIO_PIN_2|GPIO_PIN_3; //PH2,3 (Remapped for F103)
+    // HAL_GPIO_Init(GPIOH,&GPIO_Initure);
+
+    GPIO_Initure.Pin=GPIO_PIN_1|GPIO_PIN_2; //PA1(KEY2), PA2(WK_UP)
+    GPIO_Initure.Mode=GPIO_MODE_INPUT;
+    GPIO_Initure.Pull=GPIO_PULLUP; // Assuming PullUp for KEY2, check WK_UP requirements
+    HAL_GPIO_Init(GPIOA,&GPIO_Initure);
 }
 
 //Button scan function
