@@ -39,19 +39,3 @@ void BUZZER_Toggle(Buzzer_TypeDef Buzzer)
 {
   HAL_GPIO_TogglePin(BUZZER_PORT[Buzzer], BUZZER_PIN[Buzzer]);
 }
-
-void BUZZER_Test(void)
-{
-  BUZZER_Init();
-
-  while (1)
-  {
-    for (int i = 0; i < BUZZER_n; i++)
-    {
-      BUZZER_On((Buzzer_TypeDef)i);
-      HAL_Delay(500);
-      BUZZER_Off((Buzzer_TypeDef)i);
-      HAL_Delay(500);
-    }
-  }
-}

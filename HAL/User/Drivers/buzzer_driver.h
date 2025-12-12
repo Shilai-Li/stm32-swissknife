@@ -19,7 +19,6 @@ void BUZZER_Init(void);
 void BUZZER_On(Buzzer_TypeDef Buzzer);
 void BUZZER_Off(Buzzer_TypeDef Buzzer);
 void BUZZER_Toggle(Buzzer_TypeDef Buzzer);
-void BUZZER_Test(void);
 
 #ifdef __cplusplus
 }
