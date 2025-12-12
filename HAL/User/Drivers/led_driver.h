@@ -19,7 +19,6 @@ void LED_Init(void);
 void LED_On(Led_TypeDef Led);
 void LED_Off(Led_TypeDef Led);
 void LED_Toggle(Led_TypeDef Led);
-void LED_Test(void);
 
 #ifdef __cplusplus
 }

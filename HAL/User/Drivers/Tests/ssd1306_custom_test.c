@@ -1,5 +1,3 @@
-#if 0
-
 #include "ssd1306_custom.h"
 
 void User_Entry(void)
@@ -9,5 +7,3 @@ void User_Entry(void)
         ssd1306_TestChineseDisplay();
     }
 }
-
-#endif

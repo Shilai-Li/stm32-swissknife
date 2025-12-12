@@ -1,9 +1,7 @@
 add_library(User OBJECT
         Components/servo.c
-        Components/Tests/servo_test.c
 
         Drivers/delay_driver.c
-        Drivers/Tests/delay_driver_test.c
         Drivers/dht11_driver.c
         Drivers/key_driver.c
         Drivers/led_driver.c
@@ -19,7 +17,6 @@ add_library(User OBJECT
         Middlewares/Algorithms/pid.c
 
         Middlewares/Protocols/crsf.c
-        Drivers/Tests/motor_driver_test.c
 )
 
 target_include_directories(User PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Components)

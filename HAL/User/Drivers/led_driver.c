@@ -38,20 +38,3 @@ void LED_Toggle(Led_TypeDef Led)
 {
   HAL_GPIO_TogglePin(GPIO_PORT[Led], GPIO_PIN[Led]);
 }
-
-void LED_Test(void)
-{
-  LED_Init();
-
-  while (1)
-  {
-    LED_On(LED_1);
-    LED_On(LED_2);
-
-    HAL_Delay(500);
-    LED_Off(LED_1);
-    LED_Off(LED_2);
-
-    HAL_Delay(500);
-  }
-}

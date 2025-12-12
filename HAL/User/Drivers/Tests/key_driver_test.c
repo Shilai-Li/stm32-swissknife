@@ -1,5 +1,3 @@
-#if 0
-
 #include "key_driver.h"
 
 void User_Entry(void)
@@ -11,5 +9,3 @@ void User_Entry(void)
 
     }
 }
-
-#endif

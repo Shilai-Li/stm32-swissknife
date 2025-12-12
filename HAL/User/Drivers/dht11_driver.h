@@ -38,7 +38,6 @@ typedef struct {
  */
 void DHT11_Init(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
 DHT11_Status DHT11_Read(DHT11_Data *data);
-void DHT11_Test(void);
 
 #ifdef __cplusplus
 }

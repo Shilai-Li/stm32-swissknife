@@ -44,24 +44,23 @@ add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(User)
 
 # Test Case Selection
-set(TEST_CASE "servo" CACHE STRING "Select which test to run (CRSF, UART, BUZZER, DELAY, DHT11, KEY, LED, MOTOR, SSD1306, SSD1306_CUSTOM)")
+set(TEST_CASE "servo_test" CACHE STRING "Select which test to run (CRSF, UART, BUZZER, DELAY, DHT11, KEY, LED, MOTOR, SSD1306, SSD1306_CUSTOM)")
 message("Selected Test Case: ${TEST_CASE}")
 
 # Applications
-if(TEST_CASE STREQUAL "")
+if(TEST_CASE STREQUAL "dfaf")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Applications/)
-
 endif ()
 
 # Comopents
-if(TEST_CASE STREQUAL "servo")
+if (TEST_CASE STREQUAL "servo_test")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Components/Tests/servo_test.c)
-elseif (TEST_CASE STREQUAL "")
+elseif (TEST_CASE STREQUAL "asdfas")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Components/Tests)
-endif()
+endif ()
 
 # Drivers
-if(TEST_CASE STREQUAL "CRSF")
+if (TEST_CASE STREQUAL "CRSF")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/crsf_protocol_test.c)
 elseif(TEST_CASE STREQUAL "UART")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE User/Drivers/Tests/uart_driver_test.c)
