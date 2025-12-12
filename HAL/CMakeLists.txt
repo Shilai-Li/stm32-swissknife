@@ -41,7 +41,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # Add User Drivers
-add_subdirectory(User/Drivers)
+add_subdirectory(User)
 
 # Test Case Selection
 set(TEST_CASE "MOTOR" CACHE STRING "Select which test to run (CRSF, UART, BUZZER, DELAY, DHT11, KEY, LED, MOTOR, SSD1306, SSD1306_CUSTOM)")
@@ -86,7 +86,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
-        User/App/Inc
 )
 
 # Add project symbols (macros)
@@ -97,6 +96,6 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-    UserDrivers
+    User
     # Add user defined libraries
 )

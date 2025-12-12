@@ -2,8 +2,8 @@
 #define SERVO_H
 
 #include "stm32f1xx_hal.h"
-#include "motor_driver.h"
-#include "pid.h"
+#include "../Drivers/motor_driver.h"
+#include "../Middlewares/Algorithms/pid.h"
 
 /*******************************************************************************
  * SERVO CONTROL PARAMETERS
