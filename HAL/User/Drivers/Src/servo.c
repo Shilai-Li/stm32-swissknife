@@ -7,9 +7,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-/*******************************************************************************
- * GLOBAL VARIABLES
- ******************************************************************************/
 volatile float servo_kp = SERVO_KP_DEFAULT;
 volatile float servo_ki = SERVO_KI_DEFAULT;
 volatile float servo_kd = SERVO_KD_DEFAULT;
@@ -30,26 +27,13 @@ volatile float debug_last_pwm = 0.0f;
 volatile uint8_t servo_enabled = 0;
 volatile uint8_t servo_error_state = 0; // 0=OK, 1=Stall/Runaway Detected
 
-/*******************************************************************************
- * STATIC VARIABLES
- ******************************************************************************/
 static uint32_t high_load_duration = 0;
 static int32_t  load_start_pos = 0;
 
-/*******************************************************************************
- * COMMAND PARSER VARIABLES
- ******************************************************************************/
 #define CMD_BUFFER_SIZE 64
 static char cmd_buffer[CMD_BUFFER_SIZE];
 static uint8_t cmd_index = 0;
 
-/*******************************************************************************
- * FUNCTION IMPLEMENTATIONS
- ******************************************************************************/
-
-/**
- * @brief  Initialize the servo control system
- */
 void Servo_Init(void) {
     // 0. FIRST: Ensure motor is disabled and PWM is 0 before doing anything
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_RESET);  // EN pin LOW = motor disabled
@@ -201,8 +185,8 @@ void Servo_Update_1kHz(void) {
     debug_last_pwm = pid_out;
 
     // Safety: Check for runaway/stall condition
-    //Check_Runaway_Condition(pid_out, servo.actual_pos);
-    //if (servo_error_state) return; // Stop if error triggered
+    Check_Runaway_Condition(pid_out, servo.actual_pos);
+    if (servo_error_state) return; // Stop if error triggered
 
     // 6. Feedforward (Static Friction Compensation) - Optional
     // if (pos_error > 0) pid_out += 2.0f;
