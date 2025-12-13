@@ -4,6 +4,8 @@
 
 void User_Entry(void)
 {
+    UART_Init();
+
     UART_Debug_Printf("\r\n=== Motor Position Control System ===\r\n");
     UART_Debug_Printf("Encoder: 360 pulses per revolution\r\n");
     UART_Debug_Printf("Conversion: 1 degree = 1 encoder pulse\r\n\r\n");

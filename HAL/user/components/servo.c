@@ -300,7 +300,8 @@ static inline float Pulses_To_Degrees(int32_t pulses) {
 /**
  * @brief  Parse and execute UART commands
  */
-void Process_Command(char* cmd) {
+void Process_Command(char* cmd)
+{
     if (cmd[0] == '\0') return;
 
     Servo_Handle_t *h = Servo_GetDefaultHandle();
@@ -327,11 +328,11 @@ void Process_Command(char* cmd) {
             UART_Debug_Printf("[DEBUG] Raw cmd: '%s', Parsing substring: '%s'\r\n", cmd, &cmd[1]);
             value = atoi(&cmd[1]);
             UART_Debug_Printf("[DEBUG] Parsed Value: %ld (0x%08lX)\r\n", value, value);
-            {
-                int32_t new_target = s->target_pos + Degrees_To_Pulses(value);
-                UART_Debug_Printf("[CMD] Rotate %ld degrees (new target: %ld pulses)\r\n", value, new_target);
-                Servo_SetTargetInstance(h, new_target);
-            }
+        {
+            int32_t new_target = s->target_pos + Degrees_To_Pulses(value);
+            UART_Debug_Printf("[CMD] Rotate %ld degrees (new target: %ld pulses)\r\n", value, new_target);
+            Servo_SetTargetInstance(h, new_target);
+        }
             break;
 
         case 'Z':
@@ -348,12 +349,12 @@ void Process_Command(char* cmd) {
 
         case 'S':
         case 's':
-            {
-                int32_t current = Motor_GetEncoderCount(h->motor);
-                UART_Debug_Printf("[CMD] Stop and hold at %ld pulses (%.1f degrees)\r\n",
-                    current, Pulses_To_Degrees(current));
-                Servo_SetTargetInstance(h, current);
-            }
+        {
+            int32_t current = Motor_GetEncoderCount(h->motor);
+            UART_Debug_Printf("[CMD] Stop and hold at %ld pulses (%.1f degrees)\r\n",
+                current, Pulses_To_Degrees(current));
+            Servo_SetTargetInstance(h, current);
+        }
             break;
 
         case 'H':
@@ -411,11 +412,12 @@ void Process_Command(char* cmd) {
 /**
  * @brief  Non-blocking UART receive and command processing
  */
-void Poll_UART_Commands(void) {
+void Poll_UART_Commands(void)
+{
     uint8_t rx_byte;
 
-    if (HAL_UART_Receive(&huart2, &rx_byte, 1, 0) == HAL_OK) {
-        HAL_UART_Transmit(&huart2, &rx_byte, 1, 10);
+    while (UART_Read(UART_DEBUG_CHANNEL, &rx_byte)) {
+        UART_Send(UART_DEBUG_CHANNEL, &rx_byte, 1);
 
         if (rx_byte == '\r' || rx_byte == '\n') {
             if (cmd_index > 0) {
@@ -441,7 +443,6 @@ void Poll_UART_Commands(void) {
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     Delay_TIM_PeriodElapsedCallback(htim);
-    // Ensure we only run this for TIM3
     if (htim->Instance == TIM3) {
         for (uint8_t i = 0; i < servo_instance_count; i++) {
             Servo_Handle_t *h = servo_instances[i];
@@ -458,7 +459,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  * @brief Continuous Encoder Test Mode
  *        Loops and prints encoder values until 'q' is pressed.
  */
-void Test_Encoder_Readings(void) {
+void Test_Encoder_Readings(void)
+{
     UART_Debug_Printf("\r\n=== Encoder Test Mode ===\r\n");
     UART_Debug_Printf("Controls:\r\n");
     UART_Debug_Printf("  'w' : Increase PWM (+10%%)\r\n");
@@ -467,68 +469,68 @@ void Test_Encoder_Readings(void) {
     UART_Debug_Printf("  'q' : Exit\r\n\r\n");
 
     int8_t current_pwm = 0;
-    
+
     // Safety: Disable control loop
     servo_enabled = 0;
     HAL_Delay(10);
-    
+
     // Explicitly enable motor hardware (driver EN pin)
-    Motor_Start(&myMotor); 
+    Motor_Start(&myMotor);
 
     uint8_t rx_byte = 0;
 
     // Flush any pending data
-    while(HAL_UART_Receive(&huart2, &rx_byte, 1, 0) == HAL_OK);
+    while (UART_Read(UART_DEBUG_CHANNEL, &rx_byte));
 
     while (1) {
         int32_t count = Motor_GetEncoderCount(&myMotor);
-        int32_t deg_int = count; 
-        
-        UART_Debug_Printf("\r[ENC] PWM: %3d%% | Count: %6ld | Deg: %ld   ", 
+        int32_t deg_int = count;
+
+        UART_Debug_Printf("\r[ENC] PWM: %3d%% | Count: %6ld | Deg: %ld   ",
             current_pwm, count, deg_int);
 
-        // Blocking receive with very short timeout (1ms) to keep loop responsive
-        // but ensure we catch characters.
-        if (HAL_UART_Receive(&huart2, &rx_byte, 1, 50) == HAL_OK) {
-             if (rx_byte == 'q' || rx_byte == 'Q') {
+        if (UART_Read(UART_DEBUG_CHANNEL, &rx_byte)) {
+            if (rx_byte == 'q' || rx_byte == 'Q') {
                 Motor_Stop(&myMotor);
                 UART_Debug_Printf("\r\nExiting Test Mode.\r\n> ");
                 break;
             }
 
             if (rx_byte == 'w' || rx_byte == 'W') {
-                 current_pwm += 10;
-                 if (current_pwm > 100) current_pwm = 100;
+                current_pwm += 10;
+                if (current_pwm > 100) current_pwm = 100;
 
-                 if (current_pwm >= 0) {
-                     Motor_SetDirection(&myMotor, 1);
-                     Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
-                 } else {
-                     Motor_SetDirection(&myMotor, 0);
-                     Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
-                 }
-             }
+                if (current_pwm >= 0) {
+                    Motor_SetDirection(&myMotor, 1);
+                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                } else {
+                    Motor_SetDirection(&myMotor, 0);
+                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                }
+            }
 
             if (rx_byte == 's' || rx_byte == 'S') {
-                 current_pwm -= 10;
-                 if (current_pwm < -100) current_pwm = -100;
+                current_pwm -= 10;
+                if (current_pwm < -100) current_pwm = -100;
 
-                 if (current_pwm >= 0) {
-                     Motor_SetDirection(&myMotor, 1);
-                     Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
-                 } else {
-                     Motor_SetDirection(&myMotor, 0);
-                     Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
-                 }
-             }
+                if (current_pwm >= 0) {
+                    Motor_SetDirection(&myMotor, 1);
+                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                } else {
+                    Motor_SetDirection(&myMotor, 0);
+                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                }
+            }
 
-             if (rx_byte == ' ') {
-                 current_pwm = 0;
-                 Motor_Stop(&myMotor);
-             }
+            if (rx_byte == ' ') {
+                current_pwm = 0;
+                Motor_Stop(&myMotor);
+            }
         }
+
+        HAL_Delay(10);
     }
-    
+
     // Resume control loop
     int32_t current_pos = Motor_GetEncoderCount(&myMotor);
     servo.target_pos = current_pos;
