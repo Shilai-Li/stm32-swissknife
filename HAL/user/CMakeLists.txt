@@ -33,6 +33,9 @@ elseif (TEST_CASE STREQUAL "servo")
     )
 
 # Drivers
+elseif(TEST_CASE STREQUAL "at24cxx")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/at24cxx_tests.c)
+    list(APPEND USER_SOURCES drivers/at24cxx.c)
 elseif(TEST_CASE STREQUAL "buzzer")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/buzzer_driver_test.c)
     list(APPEND USER_SOURCES drivers/buzzer.c)
