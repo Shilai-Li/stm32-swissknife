@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "ssd1306.h"
-#include "ssd1306_tests.h"
+#include "../tests/ssd1306_tests.h"
 #include "ssd1306_fonts.h"
 #include "uart_driver.h"
 

@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#include "../ssd1306_conf.h"
+#include "ssd1306_conf.h"
 
 
 #if defined(STM32WB)

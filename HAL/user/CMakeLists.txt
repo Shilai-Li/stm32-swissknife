@@ -61,11 +61,11 @@ elseif(TEST_CASE STREQUAL "SSD1306_CUSTOM")
     list(APPEND USER_SOURCES
             drivers/afiskon-stm32-ssd1306/ssd1306.c
             drivers/afiskon-stm32-ssd1306/ssd1306_fonts.c
-            drivers/afiskon-stm32-ssd1306/ssd1306_custom.c
-            drivers/afiskon-stm32-ssd1306/ssd1306_fonts_custom.c
+            drivers/ssd1306_custom.c
+            drivers/ssd1306_fonts_custom.c
     )
 elseif(TEST_CASE STREQUAL "SSD1306")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ssd1306_tests.c)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/afiskon-stm32-ssd1306/ssd1306_tests.c)
     list(APPEND USER_SOURCES
             drivers/afiskon-stm32-ssd1306/ssd1306.c
             drivers/afiskon-stm32-ssd1306/ssd1306_fonts.c
