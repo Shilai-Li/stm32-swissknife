@@ -1,7 +1,7 @@
 #ifndef __SSD1306_FONTS_CUSTOM_H__
 #define __SSD1306_FONTS_CUSTOM_H__
 
-#include "ssd1306_fonts.h"
+#include "afiskon-stm32-ssd1306/ssd1306_fonts.h"
 
 #ifdef __cplusplus
 extern "C" {

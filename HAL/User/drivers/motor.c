@@ -1,4 +1,4 @@
-#include "motor_driver.h"
+#include "motor.h"
 
 // Initialize motor - Start PWM signal, hardware initialization is done by HAL_Init
 void Motor_Init(Motor_Handle_t *motor) {

@@ -1,8 +1,8 @@
-#include "dht11_driver.h"
+#include "dht11.h"
 
 #include "tim.h"
-#include "uart_driver.h"
-#include "delay_driver.h"
+#include "uart.h"
+#include "delay.h"
 
 /* Internal variables to store GPIO and Pin information */
 static GPIO_TypeDef *dht11_port;

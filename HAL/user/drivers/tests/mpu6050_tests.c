@@ -27,8 +27,8 @@
  *    - 本工程可用 UART_Init()/UART_Debug_Printf() 输出调试信息
  */
 
-#include "mpu6050_driver.h"
-#include "uart_driver.h"
+#include "mpu6050.h"
+#include "uart.h"
 
 /* 该句柄由 CubeMX 生成（启用 I2C1 后在 i2c.c 中定义）。
  * 如果你用的是其它 I2C（如 hi2c2），请修改这里。

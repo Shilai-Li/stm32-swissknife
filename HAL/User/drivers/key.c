@@ -6,10 +6,10 @@
  * @date    2024
  */
 
-#include "key_driver.h"
+#include "key.h"
 
-#include "uart_driver.h"
-#include "delay_driver.h"
+#include "uart.h"
+#include "delay.h"
 
 /* ========================================= PRIVATE VARIABLES ========================================= */
 

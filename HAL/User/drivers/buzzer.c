@@ -1,5 +1,5 @@
-#include "buzzer_driver.h"
-#include "delay_driver.h"
+#include "buzzer.h"
+#include "delay.h"
 
 #include "stm32f1xx_hal.h"
 

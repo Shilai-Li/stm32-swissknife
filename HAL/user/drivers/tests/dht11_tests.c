@@ -1,4 +1,4 @@
-#include "dht11_driver.h"
+#include "dht11.h"
 
 void User_Entry(void)
 {

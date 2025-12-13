@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "ssd1306.h"
-#include "ssd1306_tests.h"
+#include "../tests/ssd1306_tests.h"
 #include "ssd1306_fonts.h"
 #include "uart_driver.h"
 
@@ -400,5 +400,13 @@ void ssd1306_TestAll() {
     HAL_Delay(3000);
     ssd1306_TestDrawBitmap();
     HAL_Delay(3000);
+}
+
+void User_Entry(void)
+{
+    while (1)
+    {
+        ssd1306_TestAll();
+    }
 }
 
