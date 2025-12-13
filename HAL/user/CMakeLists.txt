@@ -12,6 +12,7 @@ set(USER_SOURCES
         drivers/rs485.c
         drivers/can_driver.c
         drivers/adc_filter.c
+        drivers/hc_sr04.c
 )
 
 # Applications
@@ -57,6 +58,8 @@ elseif(TEST_CASE STREQUAL "delay")
 elseif(TEST_CASE STREQUAL "dht11")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/dht11_driver_test.c)
     list(APPEND USER_SOURCES drivers/dht11.c)
+elseif(TEST_CASE STREQUAL "hc_sr04")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/hc_sr04_tests.c)
 elseif(TEST_CASE STREQUAL "ili9341")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ili9341_tests.c)
     list(APPEND USER_SOURCES drivers/ili9341.c)
