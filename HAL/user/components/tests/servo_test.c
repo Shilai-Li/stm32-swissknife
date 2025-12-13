@@ -1,5 +1,6 @@
 #include "uart_driver.h"
 #include "servo.h"
+#include "tim.h"
 
 void User_Entry(void)
 {
@@ -8,7 +9,30 @@ void User_Entry(void)
     UART_Debug_Printf("Conversion: 1 degree = 1 encoder pulse\r\n\r\n");
 
     // Initialize Servo System
-    Servo_Init();
+    static Servo_Handle_t servo0;
+
+    servo0.debug_counter = &debug_counter;
+    servo0.debug_last_pwm = &debug_last_pwm;
+    servo0.enabled = &servo_enabled;
+    servo0.error_state = &servo_error_state;
+
+    Servo_Config_t cfg;
+    cfg.pwm_htim = &htim1;
+    cfg.pwm_channel = TIM_CHANNEL_1;
+    cfg.pwm_period = 99;
+    cfg.en_port = GPIOC;
+    cfg.en_pin = GPIO_PIN_15;
+    cfg.dir_port = GPIOB;
+    cfg.dir_pin = GPIO_PIN_13;
+    cfg.enc_htim = &htim2;
+    cfg.kp = servo_kp;
+    cfg.ki = servo_ki;
+    cfg.kd = servo_kd;
+    cfg.pid_limit = servo_pid_limit;
+    cfg.pid_ramp = 1000.0f;
+    cfg.auto_start = 1;
+
+    (void)Servo_InitInstance(&servo0, &myMotor, &posPID, &servo, &cfg);
 
     // Show help on startup
     UART_Debug_Printf("=== System Ready ===\r\n");

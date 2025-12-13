@@ -3,7 +3,7 @@
 
 #include "stm32f1xx_hal.h"
 #include "motor_driver.h"
-#include "pid.h"
+#include "algorithms/pid.h"
 
 /*******************************************************************************
  * SERVO CONTROL PARAMETERS
@@ -41,6 +41,43 @@ typedef struct {
     uint8_t is_at_target;       // Flag 1=Yes, 0=No
 } Servo_State_t;
 
+typedef struct {
+    TIM_HandleTypeDef *pwm_htim;
+    uint32_t pwm_channel;
+    uint32_t pwm_period;
+    GPIO_TypeDef *en_port;
+    uint16_t en_pin;
+    GPIO_TypeDef *dir_port;
+    uint16_t dir_pin;
+    TIM_HandleTypeDef *enc_htim;
+    float kp;
+    float ki;
+    float kd;
+    float pid_limit;
+    float pid_ramp;
+    uint8_t auto_start;
+} Servo_Config_t;
+
+typedef struct {
+    Motor_Handle_t *motor;
+    PIDController *pid;
+    volatile Servo_State_t *state;
+    volatile uint32_t *debug_counter;
+    volatile float *debug_last_pwm;
+    volatile uint8_t *enabled;
+    volatile uint8_t *error_state;
+    volatile uint32_t debug_counter_storage;
+    volatile float debug_last_pwm_storage;
+    volatile uint8_t enabled_storage;
+    volatile uint8_t error_state_storage;
+    uint32_t high_load_duration;
+    int32_t load_start_pos;
+    float kp;
+    float ki;
+    float kd;
+    float pid_limit;
+} Servo_Handle_t;
+
 /*******************************************************************************
  * GLOBAL VARIABLES
  ******************************************************************************/
@@ -61,21 +98,14 @@ extern PIDController posPID;
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
-/* Core Servo Functions */
-void Servo_Init(void);
-void Servo_SetTarget(int32_t position);
-uint8_t Servo_IsAtTarget(void);
-void Servo_Update_1kHz(void);
-
-/* Trajectory Generation */
-float Servo_ComputeTrajectory(void);
-
-/* Safety Functions */
-void Check_Runaway_Condition(float pid_output, int32_t current_pos);
-
-/* Utility Functions */
-static inline int32_t Degrees_To_Pulses(int32_t degrees);
-static inline float Pulses_To_Degrees(int32_t pulses);
+HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
+                                      Motor_Handle_t *motor,
+                                      PIDController *pid,
+                                      volatile Servo_State_t *state,
+                                      const Servo_Config_t *cfg);
+void Servo_SetTargetInstance(Servo_Handle_t *handle, int32_t position);
+uint8_t Servo_IsAtTargetInstance(Servo_Handle_t *handle);
+void Servo_UpdateInstance_1kHz(Servo_Handle_t *handle);
 
 /* Command Processing */
 void Process_Command(char* cmd);
