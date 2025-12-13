@@ -2,8 +2,6 @@
 #define SERVO_H
 
 #include "stm32f1xx_hal.h"
-#include "motor_driver.h"
-#include "algorithms/pid.h"
 
 /*******************************************************************************
  * SERVO CONTROL PARAMETERS
@@ -31,6 +29,42 @@
 #define PULSES_TO_DEGREES(pulses) ((float)(pulses))  // Direct 1:1 conversion
 
 /*******************************************************************************
+ * INTERFACE DEFINITIONS
+ ******************************************************************************/
+
+/* Motor Interface */
+typedef void (*Servo_Motor_Init_Fn)(void *ctx);
+typedef void (*Servo_Motor_Start_Fn)(void *ctx);
+typedef void (*Servo_Motor_Stop_Fn)(void *ctx);
+typedef void (*Servo_Motor_SetSpeed_Fn)(void *ctx, uint8_t speed);
+typedef void (*Servo_Motor_SetDirection_Fn)(void *ctx, uint8_t dir);
+typedef int32_t (*Servo_Motor_GetEncoder_Fn)(void *ctx);
+typedef void (*Servo_Motor_ResetEncoder_Fn)(void *ctx, int32_t val);
+
+typedef struct {
+    Servo_Motor_Init_Fn init;
+    Servo_Motor_Start_Fn start;
+    Servo_Motor_Stop_Fn stop;
+    Servo_Motor_SetSpeed_Fn set_speed;
+    Servo_Motor_SetDirection_Fn set_direction;
+    Servo_Motor_GetEncoder_Fn get_encoder;
+    Servo_Motor_ResetEncoder_Fn reset_encoder;
+} Servo_MotorInterface_t;
+
+/* PID Interface */
+typedef void (*Servo_PID_Init_Fn)(void *ctx, float p, float i, float d, float limit, float ramp);
+typedef void (*Servo_PID_Reset_Fn)(void *ctx);
+typedef float (*Servo_PID_Compute_Fn)(void *ctx, float error, float dt);
+typedef void (*Servo_PID_SetLimit_Fn)(void *ctx, float limit); // Optional helper if needed
+
+typedef struct {
+    Servo_PID_Init_Fn init;
+    Servo_PID_Reset_Fn reset;
+    Servo_PID_Compute_Fn compute;
+    Servo_PID_SetLimit_Fn set_limit; // Added to support 'L' command
+} Servo_PIDInterface_t;
+
+/*******************************************************************************
  * SERVO STATE STRUCTURE
  ******************************************************************************/
 typedef struct {
@@ -42,14 +76,8 @@ typedef struct {
 } Servo_State_t;
 
 typedef struct {
-    TIM_HandleTypeDef *pwm_htim;
-    uint32_t pwm_channel;
-    uint32_t pwm_period;
-    GPIO_TypeDef *en_port;
-    uint16_t en_pin;
-    GPIO_TypeDef *dir_port;
-    uint16_t dir_pin;
-    TIM_HandleTypeDef *enc_htim;
+    // Hardware config is now largely handled by the context/adapter, 
+    // but these values might still be used for PID Init or logic.
     float kp;
     float ki;
     float kd;
@@ -59,8 +87,12 @@ typedef struct {
 } Servo_Config_t;
 
 typedef struct {
-    Motor_Handle_t *motor;
-    PIDController *pid;
+    void *motor_context;
+    const Servo_MotorInterface_t *motor_if;
+    
+    void *pid_context;
+    const Servo_PIDInterface_t *pid_if;
+    
     volatile Servo_State_t *state;
     volatile uint32_t *debug_counter;
     volatile float *debug_last_pwm;
@@ -91,16 +123,19 @@ extern volatile uint8_t servo_error_state;
 extern volatile uint32_t debug_counter;
 extern volatile float debug_last_pwm;
 
-extern Motor_Handle_t myMotor;
-extern PIDController posPID;
+// Removed direct externs to Motor/PID objects
+// extern Motor_Handle_t myMotor;
+// extern PIDController posPID;
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
 HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
-                                      Motor_Handle_t *motor,
-                                      PIDController *pid,
+                                      void *motor_ctx,
+                                      const Servo_MotorInterface_t *motor_if,
+                                      void *pid_ctx,
+                                      const Servo_PIDInterface_t *pid_if,
                                       volatile Servo_State_t *state,
                                       const Servo_Config_t *cfg);
 void Servo_SetTargetInstance(Servo_Handle_t *handle, int32_t position);

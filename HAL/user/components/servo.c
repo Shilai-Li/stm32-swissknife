@@ -12,8 +12,6 @@ volatile float servo_ki = SERVO_KI_DEFAULT;
 volatile float servo_kd = SERVO_KD_DEFAULT;
 volatile float servo_pid_limit = SERVO_PID_LIMIT_DEFAULT;
 
-Motor_Handle_t myMotor;
-PIDController posPID;
 volatile Servo_State_t servo;
 
 #define SERVO_MAX_INSTANCES 4
@@ -22,8 +20,6 @@ static uint8_t servo_instance_count = 0;
 static uint8_t servo_scheduler_started = 0;
 
 /* External Handles from main.c/tim.c */
-extern TIM_HandleTypeDef htim1; // PWM (PA8)
-extern TIM_HandleTypeDef htim2; // Encoder (PA0/PA1)
 extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 
 /* Debug / Telemetry */
@@ -35,6 +31,8 @@ volatile uint8_t servo_error_state = 0; // 0=OK, 1=Stall/Runaway Detected
 #define CMD_BUFFER_SIZE 64
 static char cmd_buffer[CMD_BUFFER_SIZE];
 static uint8_t cmd_index = 0;
+
+static Servo_Handle_t *Servo_GetDefaultHandle(void);
 
 static void Servo_BindDefaultPointers(Servo_Handle_t *handle)
 {
@@ -125,7 +123,7 @@ static void Check_Runaway_Condition_Instance(Servo_Handle_t *handle, float pid_o
             if (moved < 10) {
                 *(handle->enabled) = 0;
                 *(handle->error_state) = 1;
-                Motor_Stop(handle->motor);
+                handle->motor_if->stop(handle->motor_context);
             }
         }
     } else {
@@ -134,12 +132,14 @@ static void Check_Runaway_Condition_Instance(Servo_Handle_t *handle, float pid_o
 }
 
 HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
-                                      Motor_Handle_t *motor,
-                                      PIDController *pid,
+                                      void *motor_ctx,
+                                      const Servo_MotorInterface_t *motor_if,
+                                      void *pid_ctx,
+                                      const Servo_PIDInterface_t *pid_if,
                                       volatile Servo_State_t *state,
                                       const Servo_Config_t *cfg)
 {
-    if (handle == NULL || motor == NULL || pid == NULL || state == NULL || cfg == NULL) return HAL_ERROR;
+    if (handle == NULL || motor_ctx == NULL || motor_if == NULL || pid_ctx == NULL || pid_if == NULL || state == NULL || cfg == NULL) return HAL_ERROR;
 
     volatile uint32_t *dbg_counter = handle->debug_counter;
     volatile float *dbg_last_pwm = handle->debug_last_pwm;
@@ -147,8 +147,12 @@ HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
     volatile uint8_t *error_state = handle->error_state;
 
     memset(handle, 0, sizeof(*handle));
-    handle->motor = motor;
-    handle->pid = pid;
+    
+    // Inject dependencies
+    handle->motor_context = motor_ctx;
+    handle->motor_if = motor_if;
+    handle->pid_context = pid_ctx;
+    handle->pid_if = pid_if;
     handle->state = state;
 
     handle->debug_counter = dbg_counter;
@@ -165,24 +169,17 @@ HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
 
     memset((void*)handle->state, 0, sizeof(Servo_State_t));
 
-    motor->htim = cfg->pwm_htim;
-    motor->channel = cfg->pwm_channel;
-    motor->en_port = cfg->en_port;
-    motor->en_pin = cfg->en_pin;
-    motor->dir_port = cfg->dir_port;
-    motor->dir_pin = cfg->dir_pin;
-    motor->pwm_period = cfg->pwm_period;
-    motor->htim_enc = cfg->enc_htim;
+    // Initialize Motor via Interface
+    handle->motor_if->init(handle->motor_context);
+    // Encoder Init/Reset via Interface
+    handle->motor_if->reset_encoder(handle->motor_context, 0);
+    handle->motor_if->set_speed(handle->motor_context, 0);
 
-    Motor_Init(motor);
-    Motor_Encoder_Init(motor);
-    Motor_ResetEncoderCount(motor, 0);
-    Motor_SetSpeed(motor, 0);
+    // Initialize PID via Interface
+    handle->pid_if->init(handle->pid_context, cfg->kp, cfg->ki, cfg->kd, cfg->pid_limit, cfg->pid_ramp);
+    handle->pid_if->reset(handle->pid_context);
 
-    PID_Init(pid, cfg->kp, cfg->ki, cfg->kd, cfg->pid_limit, cfg->pid_ramp);
-    PID_Reset(pid);
-
-    int32_t initial_pos = Motor_GetEncoderCount(motor);
+    int32_t initial_pos = handle->motor_if->get_encoder(handle->motor_context);
     handle->state->target_pos = initial_pos;
     handle->state->setpoint_pos = (float)initial_pos;
     handle->state->actual_pos = initial_pos;
@@ -202,7 +199,7 @@ HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
     HAL_Delay(10);
 
     if (cfg->auto_start) {
-        Motor_Start(motor);
+        handle->motor_if->start(handle->motor_context);
     }
 
     return HAL_OK;
@@ -218,28 +215,28 @@ static Servo_Handle_t *Servo_GetDefaultHandle(void)
 }
 
 void Servo_UpdateInstance_1kHz(Servo_Handle_t *handle) {
-    if (handle == NULL || handle->motor == NULL || handle->pid == NULL || handle->state == NULL) return;
+    if (handle == NULL || handle->motor_if == NULL || handle->pid_if == NULL || handle->state == NULL) return;
 
     if (*(handle->error_state)) {
-        Motor_SetSpeed(handle->motor, 0);
+        handle->motor_if->set_speed(handle->motor_context, 0);
         return;
     }
 
     if (!(*(handle->enabled))) {
-        Motor_SetSpeed(handle->motor, 0);
+        handle->motor_if->set_speed(handle->motor_context, 0);
         return;
     }
 
     volatile Servo_State_t *s = handle->state;
 
-    s->actual_pos = Motor_GetEncoderCount(handle->motor);
+    s->actual_pos = handle->motor_if->get_encoder(handle->motor_context);
     s->setpoint_pos = Servo_ComputeTrajectory_Instance(handle);
 
     float pos_error = s->setpoint_pos - (float)s->actual_pos;
 
     if (fabsf(pos_error) < SERVO_POS_TOLERANCE && fabsf(s->setpoint_vel) < 1.0f) {
         s->is_at_target = 1;
-        Motor_SetSpeed(handle->motor, 0);
+        handle->motor_if->set_speed(handle->motor_context, 0);
         return;
     }
 
@@ -247,7 +244,7 @@ void Servo_UpdateInstance_1kHz(Servo_Handle_t *handle) {
 
     if (fabsf(pos_error) < 1.0f) pos_error = 0.0f;
 
-    float pid_out = PID_Compute(handle->pid, pos_error, CONTROL_DT);
+    float pid_out = handle->pid_if->compute(handle->pid_context, pos_error, CONTROL_DT);
     *(handle->debug_last_pwm) = pid_out;
 
     Check_Runaway_Condition_Instance(handle, pid_out, s->actual_pos);
@@ -262,12 +259,12 @@ void Servo_UpdateInstance_1kHz(Servo_Handle_t *handle) {
     if (pwm_val < 2) pwm_val = 0;
 
     if (pid_out >= 0) {
-        Motor_SetDirection(handle->motor, 1);
+        handle->motor_if->set_direction(handle->motor_context, 1);
     } else {
-        Motor_SetDirection(handle->motor, 0);
+        handle->motor_if->set_direction(handle->motor_context, 0);
     }
 
-    Motor_SetSpeed(handle->motor, pwm_val);
+    handle->motor_if->set_speed(handle->motor_context, pwm_val);
 }
 
 void Servo_SetTargetInstance(Servo_Handle_t *handle, int32_t position)
@@ -305,7 +302,7 @@ void Process_Command(char* cmd)
     if (cmd[0] == '\0') return;
 
     Servo_Handle_t *h = Servo_GetDefaultHandle();
-    if (h == NULL || h->motor == NULL || h->pid == NULL || h->state == NULL) {
+    if (h == NULL || h->motor_if == NULL || h->pid_if == NULL || h->state == NULL) {
         UART_Debug_Printf("[ERROR] Servo instance not initialized.\r\n> ");
         return;
     }
@@ -335,19 +332,19 @@ void Process_Command(char* cmd)
         case 'Z':
         case 'z':
             UART_Debug_Printf("[CMD] Zeroing encoder position\r\n");
-            Motor_ResetEncoderCount(h->motor, 0);
+            h->motor_if->reset_encoder(h->motor_context, 0);
             s->target_pos = 0;
             s->setpoint_pos = 0.0f;
             s->setpoint_vel = 0.0f;
             s->actual_pos = 0;
             s->is_at_target = 1;
-            PID_Reset(h->pid);
+            h->pid_if->reset(h->pid_context);
             break;
 
         case 'S':
         case 's':
         {
-            int32_t current = Motor_GetEncoderCount(h->motor);
+            int32_t current = h->motor_if->get_encoder(h->motor_context);
             UART_Debug_Printf("[CMD] Stop and hold at %ld pulses (%.1f degrees)\r\n",
                 current, Pulses_To_Degrees(current));
             Servo_SetTargetInstance(h, current);
@@ -394,7 +391,11 @@ void Process_Command(char* cmd)
 
             servo_pid_limit = (float)value;
             h->pid_limit = servo_pid_limit;
-            h->pid->limit = servo_pid_limit;
+            
+            // If interface supports setting limit, use it
+            if (h->pid_if->set_limit) {
+                h->pid_if->set_limit(h->pid_context, servo_pid_limit);
+            }
 
             UART_Debug_Printf("[CMD] Set PWM Limit to %ld%%\r\n", value);
             break;
@@ -458,6 +459,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  */
 void Test_Encoder_Readings(void)
 {
+    Servo_Handle_t *h = Servo_GetDefaultHandle();
+    if (h == NULL || h->motor_if == NULL) return;
+
     UART_Debug_Printf("\r\n=== Encoder Test Mode ===\r\n");
     UART_Debug_Printf("Controls:\r\n");
     UART_Debug_Printf("  'w' : Increase PWM (+10%%)\r\n");
@@ -471,8 +475,8 @@ void Test_Encoder_Readings(void)
     servo_enabled = 0;
     HAL_Delay(10);
 
-    // Explicitly enable motor hardware (driver EN pin)
-    Motor_Start(&myMotor);
+    // Explicitly enable motor hardware via interface
+    h->motor_if->start(h->motor_context);
 
     uint8_t rx_byte = 0;
 
@@ -480,7 +484,7 @@ void Test_Encoder_Readings(void)
     while (UART_Read(UART_DEBUG_CHANNEL, &rx_byte));
 
     while (1) {
-        int32_t count = Motor_GetEncoderCount(&myMotor);
+        int32_t count = h->motor_if->get_encoder(h->motor_context);
         int32_t deg_int = count;
 
         UART_Debug_Printf("\r[ENC] PWM: %3d%% | Count: %6ld | Deg: %ld   ",
@@ -488,7 +492,7 @@ void Test_Encoder_Readings(void)
 
         if (UART_Read(UART_DEBUG_CHANNEL, &rx_byte)) {
             if (rx_byte == 'q' || rx_byte == 'Q') {
-                Motor_Stop(&myMotor);
+                h->motor_if->stop(h->motor_context);
                 UART_Debug_Printf("\r\nExiting Test Mode.\r\n> ");
                 break;
             }
@@ -498,11 +502,11 @@ void Test_Encoder_Readings(void)
                 if (current_pwm > 100) current_pwm = 100;
 
                 if (current_pwm >= 0) {
-                    Motor_SetDirection(&myMotor, 1);
-                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                    h->motor_if->set_direction(h->motor_context, 1);
+                    h->motor_if->set_speed(h->motor_context, (uint8_t)current_pwm);
                 } else {
-                    Motor_SetDirection(&myMotor, 0);
-                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                    h->motor_if->set_direction(h->motor_context, 0);
+                    h->motor_if->set_speed(h->motor_context, (uint8_t)(-current_pwm));
                 }
             }
 
@@ -511,17 +515,17 @@ void Test_Encoder_Readings(void)
                 if (current_pwm < -100) current_pwm = -100;
 
                 if (current_pwm >= 0) {
-                    Motor_SetDirection(&myMotor, 1);
-                    Motor_SetSpeed(&myMotor, (uint8_t)current_pwm);
+                    h->motor_if->set_direction(h->motor_context, 1);
+                    h->motor_if->set_speed(h->motor_context, (uint8_t)current_pwm);
                 } else {
-                    Motor_SetDirection(&myMotor, 0);
-                    Motor_SetSpeed(&myMotor, (uint8_t)(-current_pwm));
+                    h->motor_if->set_direction(h->motor_context, 0);
+                    h->motor_if->set_speed(h->motor_context, (uint8_t)(-current_pwm));
                 }
             }
 
             if (rx_byte == ' ') {
                 current_pwm = 0;
-                Motor_Stop(&myMotor);
+                h->motor_if->stop(h->motor_context);
             }
         }
 
@@ -529,11 +533,11 @@ void Test_Encoder_Readings(void)
     }
 
     // Resume control loop
-    int32_t current_pos = Motor_GetEncoderCount(&myMotor);
+    int32_t current_pos = h->motor_if->get_encoder(h->motor_context);
     servo.target_pos = current_pos;
     servo.setpoint_pos = (float)current_pos;
     servo.setpoint_vel = 0.0f;
     servo.is_at_target = 1;
-    PID_Reset(&posPID);
+    h->pid_if->reset(h->pid_context);
     servo_enabled = 1;
 }

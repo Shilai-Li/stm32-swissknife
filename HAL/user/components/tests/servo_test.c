@@ -1,6 +1,46 @@
 #include "uart_driver.h"
 #include "servo.h"
 #include "tim.h"
+#include "motor_driver.h"
+#include "algorithms/pid.h"
+
+// Define Global Instances Here (moved from servo.c)
+Motor_Handle_t myMotor;
+PIDController posPID;
+
+// --- Adapter Wrappers for Motor ---
+void Adapter_Motor_Init(void *ctx) { Motor_Init((Motor_Handle_t*)ctx); }
+void Adapter_Motor_Start(void *ctx) { Motor_Start((Motor_Handle_t*)ctx); }
+void Adapter_Motor_Stop(void *ctx) { Motor_Stop((Motor_Handle_t*)ctx); }
+void Adapter_Motor_SetSpeed(void *ctx, uint8_t speed) { Motor_SetSpeed((Motor_Handle_t*)ctx, speed); }
+void Adapter_Motor_SetDirection(void *ctx, uint8_t dir) { Motor_SetDirection((Motor_Handle_t*)ctx, dir); }
+int32_t Adapter_Motor_GetEncoder(void *ctx) { return Motor_GetEncoderCount((Motor_Handle_t*)ctx); }
+void Adapter_Motor_ResetEncoder(void *ctx, int32_t val) { Motor_ResetEncoderCount((Motor_Handle_t*)ctx, val); }
+
+static const Servo_MotorInterface_t motor_adapter = {
+    .init = Adapter_Motor_Init,
+    .start = Adapter_Motor_Start,
+    .stop = Adapter_Motor_Stop,
+    .set_speed = Adapter_Motor_SetSpeed,
+    .set_direction = Adapter_Motor_SetDirection,
+    .get_encoder = Adapter_Motor_GetEncoder,
+    .reset_encoder = Adapter_Motor_ResetEncoder
+};
+
+// --- Adapter Wrappers for PID ---
+void Adapter_PID_Init(void *ctx, float p, float i, float d, float limit, float ramp) {
+    PID_Init((PIDController*)ctx, p, i, d, limit, ramp);
+}
+void Adapter_PID_Reset(void *ctx) { PID_Reset((PIDController*)ctx); }
+float Adapter_PID_Compute(void *ctx, float error, float dt) { return PID_Compute((PIDController*)ctx, error, dt); }
+void Adapter_PID_SetLimit(void *ctx, float limit) { ((PIDController*)ctx)->limit = limit; }
+
+static const Servo_PIDInterface_t pid_adapter = {
+    .init = Adapter_PID_Init,
+    .reset = Adapter_PID_Reset,
+    .compute = Adapter_PID_Compute,
+    .set_limit = Adapter_PID_SetLimit
+};
 
 void User_Entry(void)
 {
@@ -19,14 +59,27 @@ void User_Entry(void)
     servo0.error_state = &servo_error_state;
 
     Servo_Config_t cfg;
-    cfg.pwm_htim = &htim1;
-    cfg.pwm_channel = TIM_CHANNEL_1;
-    cfg.pwm_period = 99;
-    cfg.en_port = GPIOC;
-    cfg.en_pin = GPIO_PIN_15;
-    cfg.dir_port = GPIOB;
-    cfg.dir_pin = GPIO_PIN_13;
-    cfg.enc_htim = &htim2;
+    // Note: Hardware config is now populated into the Motor_Handle_t *ctx via user code 
+    // OR we need to populate myMotor struct before passing it?
+    // Originally Servo_Init populated the Motor struct from cfg.
+    // Now Servo_Init calls motor_if->init().
+    
+    // We need to configure the myMotor struct manually here or pass the config to the adapter?
+    // The adapter just blindly calls Motor_Init with the ctx.
+    // So 'myMotor' needs to be configured BEFORE Init is called,
+    // OR Motor_Init uses the fields values.
+    
+    // Let's populate myMotor directly here:
+    myMotor.htim = &htim1;
+    myMotor.channel = TIM_CHANNEL_1;
+    myMotor.pwm_period = 99;
+    myMotor.en_port = GPIOC;
+    myMotor.en_pin = GPIO_PIN_15;
+    myMotor.dir_port = GPIOB;
+    myMotor.dir_pin = GPIO_PIN_13;
+    myMotor.htim_enc = &htim2;
+    
+    // Config for PID/Logic
     cfg.kp = servo_kp;
     cfg.ki = servo_ki;
     cfg.kd = servo_kd;
@@ -34,7 +87,11 @@ void User_Entry(void)
     cfg.pid_ramp = 1000.0f;
     cfg.auto_start = 1;
 
-    (void)Servo_InitInstance(&servo0, &myMotor, &posPID, &servo, &cfg);
+    // Call Init with Adapters
+    (void)Servo_InitInstance(&servo0, 
+                             &myMotor, &motor_adapter,
+                             &posPID, &pid_adapter,
+                             &servo, &cfg);
 
     // Show help on startup
     UART_Debug_Printf("=== System Ready ===\r\n");
