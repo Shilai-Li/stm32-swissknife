@@ -1,10 +1,8 @@
 #include "servo.h"
-#include "tim.h"
-#include "uart_driver.h"
-#include "delay_driver.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h> // For varargs if needed, though we use ptr
 #include <math.h>
 
 /*******************************************************************************
@@ -14,10 +12,6 @@
 #define SERVO_MAX_INSTANCES 4
 static Servo_Handle_t *servo_instances[SERVO_MAX_INSTANCES];
 static uint8_t servo_instance_count = 0;
-static bool scheduler_started = false;
-
-/* External Handles for Timing */
-extern TIM_HandleTypeDef htim3; // 1ms Interrupt
 
 /* Command Buffer */
 #define CMD_BUFFER_SIZE 64
@@ -31,19 +25,15 @@ static Servo_Status Register_Instance(Servo_Handle_t *handle)
 {
     if (handle == NULL) return SERVO_ERROR;
 
-    __disable_irq();
     for (uint8_t i = 0; i < servo_instance_count; i++) {
         if (servo_instances[i] == handle) {
-            __enable_irq();
             return SERVO_OK; // Already registered
         }
     }
     if (servo_instance_count >= SERVO_MAX_INSTANCES) {
-        __enable_irq();
         return SERVO_ERROR; // Full
     }
     servo_instances[servo_instance_count++] = handle;
-    __enable_irq();
 
     return SERVO_OK;
 }
@@ -57,6 +47,13 @@ static Servo_Handle_t *Get_Default_Handle(void)
         return servo_instances[0];
     }
     return NULL;
+}
+
+/**
+ * @brief Helper to check system interface validity
+ */
+static bool Sys_Valid(Servo_Handle_t *h) {
+    return (h && h->sys_if);
 }
 
 /*******************************************************************************
@@ -133,9 +130,10 @@ static void Check_Runaway(Servo_Handle_t *h, float pid_out)
 Servo_Status Servo_Init(Servo_Handle_t *handle,
                              const Servo_MotorInterface_t *motor_if, void *motor_ctx,
                              const Servo_PIDInterface_t *pid_if, void *pid_ctx,
+                             const Servo_SystemInterface_t *sys_if,
                              const Servo_Config_t *config)
 {
-    if (!handle || !motor_if || !motor_ctx || !pid_if || !pid_ctx || !config) {
+    if (!handle || !motor_if || !motor_ctx || !pid_if || !pid_ctx || !sys_if || !config) {
         return SERVO_ERROR;
     }
 
@@ -147,6 +145,7 @@ Servo_Status Servo_Init(Servo_Handle_t *handle,
     handle->motor_ctx = motor_ctx;
     handle->pid_if = pid_if;
     handle->pid_ctx = pid_ctx;
+    handle->sys_if = sys_if;
     handle->config = *config; // Copy config
 
     // Hardware Init
@@ -174,12 +173,6 @@ Servo_Status Servo_Init(Servo_Handle_t *handle,
     if (Register_Instance(handle) != SERVO_OK) {
         return SERVO_ERROR;
     }
-
-    // Start Scheduler if needed
-    if (!scheduler_started) {
-        HAL_TIM_Base_Start_IT(&htim3);
-        scheduler_started = true;
-    }
     
     // Auto start
     if (config->auto_start) {
@@ -187,7 +180,9 @@ Servo_Status Servo_Init(Servo_Handle_t *handle,
     }
     
     // Allow system to stabilize
-    HAL_Delay(10); 
+    if (handle->sys_if->delay_ms) {
+        handle->sys_if->delay_ms(10);
+    }
     
     return SERVO_OK;
 }
@@ -283,24 +278,24 @@ float Servo_PulsesToDegrees(int32_t pulses) {
 
 void Servo_ProcessCommand(Servo_Handle_t *h, char* cmd)
 {
-    if (!h || !cmd) return;
+    if (!h || !cmd || !h->sys_if || !h->sys_if->log) return;
     
     char type = cmd[0];
     int32_t val = atoi(&cmd[1]);
     
     switch (type) {
         case 'G': case 'g': // Go Absolute
-            UART_Debug_Printf("[CMD] Go Abs: %d\r\n", val);
+            h->sys_if->log("[CMD] Go Abs: %d\r\n", val);
             Servo_SetTarget(h, val);
             break;
             
         case 'R': case 'r': // Relative
-            UART_Debug_Printf("[CMD] Go Rel: %d\r\n", val);
+            h->sys_if->log("[CMD] Go Rel: %d\r\n", val);
             Servo_SetTarget(h, h->state.target_pos + val);
             break;
             
         case 'Z': case 'z': // Zero
-            UART_Debug_Printf("[CMD] Zero Position\r\n");
+            h->sys_if->log("[CMD] Zero Position\r\n");
             h->motor_if->reset_encoder(h->motor_ctx, 0);
             h->state.target_pos = 0;
             h->state.setpoint_pos = 0;
@@ -309,21 +304,21 @@ void Servo_ProcessCommand(Servo_Handle_t *h, char* cmd)
             break;
             
         case 'S': case 's': // Stop
-            UART_Debug_Printf("[CMD] Stop\r\n");
+            h->sys_if->log("[CMD] Stop\r\n");
             Servo_SetTarget(h, h->state.actual_pos);
             break;
             
         case 'L': case 'l': // Limit
             if (val < 0) val = 0;
             if (val > 100) val = 100;
-            UART_Debug_Printf("[CMD] Set Limit: %d%%\r\n", val);
+            h->sys_if->log("[CMD] Set Limit: %d%%\r\n", val);
             h->config.output_limit = (float)val;
             if (h->pid_if->set_limit)
                 h->pid_if->set_limit(h->pid_ctx, (float)val);
             break;
 
         case 'P': case 'p': // Print
-            UART_Debug_Printf("[STAT] Tgt: %d, Act: %d, PWM: %.1f\r\n", 
+            h->sys_if->log("[STAT] Tgt: %d, Act: %d, PWM: %.1f\r\n", 
                 h->state.target_pos, h->state.actual_pos, h->debug_last_output);
             break;
             
@@ -332,29 +327,35 @@ void Servo_ProcessCommand(Servo_Handle_t *h, char* cmd)
             break;
             
         case 'H': case 'h': default:
-            UART_Debug_Printf("Help: G=Go, R=Rel, Z=Zero, S=Stop, L=Limit, P=Print, E=Test\r\n> ");
+            h->sys_if->log("Help: G=Go, R=Rel, Z=Zero, S=Stop, L=Limit, P=Print, E=Test\r\n> ");
             break;
     }
 }
 
 void Poll_UART_Commands(void)
 {
+    Servo_Handle_t *h = Get_Default_Handle();
+    if (!Sys_Valid(h)) return;
+
     uint8_t rx;
-    while (UART_Read(UART_DEBUG_CHANNEL, &rx)) {
-        UART_Send(UART_DEBUG_CHANNEL, &rx, 1); // Echo
+    while (h->sys_if->read_char(&rx)) {
+        // Echo? Assuming read_char handles it or we print it back?
+        // Usually echo is nice for terminals
+        char echo_char[2] = {rx, 0};
+        h->sys_if->log("%s", echo_char);
 
         if (rx == '\r' || rx == '\n') {
             if (cmd_index > 0) {
                 cmd_buffer[cmd_index] = '\0';
-                UART_Debug_Printf("\r\n");
+                h->sys_if->log("\r\n");
                 // Use default handle for global CLI
-                Servo_ProcessCommand(Get_Default_Handle(), cmd_buffer);
+                Servo_ProcessCommand(h, cmd_buffer);
                 cmd_index = 0;
             }
         } else if (rx == 0x08 || rx == 0x7F) { // Backspace
             if (cmd_index > 0) {
                 cmd_index--;
-                UART_Debug_Printf("\b \b");
+                h->sys_if->log("\b \b");
             }
         } else if (cmd_index < CMD_BUFFER_SIZE - 1) {
             cmd_buffer[cmd_index++] = (char)rx;
@@ -362,25 +363,21 @@ void Poll_UART_Commands(void)
     }
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void Servo_Scheduler_Tick(void)
 {
-    Delay_TIM_PeriodElapsedCallback(htim); // Chain existing
-    
-    if (htim->Instance == TIM3) {
-        for (uint8_t i = 0; i < servo_instance_count; i++) {
-            if (servo_instances[i]) {
-                Servo_Update(servo_instances[i]);
-                servo_instances[i]->debug_counter++;
-            }
+    for (uint8_t i = 0; i < servo_instance_count; i++) {
+        if (servo_instances[i]) {
+            Servo_Update(servo_instances[i]);
+            servo_instances[i]->debug_counter++;
         }
     }
 }
 
 void Servo_RunEncoderTest(Servo_Handle_t *h)
 {
-    if (!h) return;
+    if (!h || !Sys_Valid(h)) return;
     
-    UART_Debug_Printf("\r\n=== Encoder Test (W/S/Space/Q) ===\r\n");
+    h->sys_if->log("\r\n=== Encoder Test (W/S/Space/Q) ===\r\n");
     h->enabled = false; // Disable loop
     h->motor_if->start(h->motor_ctx);
     
@@ -389,9 +386,9 @@ void Servo_RunEncoderTest(Servo_Handle_t *h)
     
     while(1) {
         int32_t enc = h->motor_if->get_encoder(h->motor_ctx);
-        UART_Debug_Printf("\r[TEST] PWM: %3d | Enc: %6d   ", pwm, enc);
+        h->sys_if->log("\r[TEST] PWM: %3d | Enc: %6d   ", pwm, enc);
         
-        if (UART_Read(UART_DEBUG_CHANNEL, &rx)) {
+        if (h->sys_if->read_char(&rx)) {
             if (rx == 'q' || rx == 'Q') break;
             if (rx == 'w') pwm += 10;
             if (rx == 's') pwm -= 10;
@@ -403,11 +400,12 @@ void Servo_RunEncoderTest(Servo_Handle_t *h)
             h->motor_if->set_direction(h->motor_ctx, (pwm >= 0));
             h->motor_if->set_speed(h->motor_ctx, (uint8_t)abs(pwm));
         }
-        HAL_Delay(20);
+        
+        if (h->sys_if->delay_ms) h->sys_if->delay_ms(20);
     }
     
     h->motor_if->set_speed(h->motor_ctx, 0);
-    UART_Debug_Printf("\r\nDone.\r\n> ");
+    h->sys_if->log("\r\nDone.\r\n> ");
     
     // Restore state
     int32_t now = h->motor_if->get_encoder(h->motor_ctx);

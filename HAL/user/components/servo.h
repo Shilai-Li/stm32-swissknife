@@ -74,6 +74,13 @@ typedef struct {
     bool    auto_start;
 } Servo_Config_t;
 
+/* Abstract System/IO Interface (Decoupled from specific Drivers) */
+typedef struct {
+    void (*log)(const char *fmt, ...); // printf-style logger
+    bool (*read_char)(uint8_t *c);     // Non-blocking char read
+    void (*delay_ms)(uint32_t ms);     // Blocking delay
+} Servo_SystemInterface_t;
+
 /* Main Servo Handle */
 typedef struct {
     // Dependencies (Injected)
@@ -82,6 +89,8 @@ typedef struct {
     
     void *pid_ctx;
     const Servo_PIDInterface_t *pid_if;
+
+    const Servo_SystemInterface_t *sys_if; // System resources
     
     // Internal Data
     Servo_Config_t config;
@@ -108,6 +117,7 @@ typedef struct {
 Servo_Status Servo_Init(Servo_Handle_t *handle,
                              const Servo_MotorInterface_t *motor_if, void *motor_ctx,
                              const Servo_PIDInterface_t *pid_if, void *pid_ctx,
+                             const Servo_SystemInterface_t *sys_if,
                              const Servo_Config_t *config);
 
 /**
@@ -121,7 +131,12 @@ void Servo_SetTarget(Servo_Handle_t *handle, int32_t position);
 bool Servo_IsAtTarget(Servo_Handle_t *handle);
 
 /**
- * @brief Main Control Loop Update (Call at 1kHz).
+ * @brief Trigger a 1kHz Control Loop Step (Call this from your Timer ISR).
+ */
+void Servo_Scheduler_Tick(void);
+
+/**
+ * @brief Main Control Loop Update (Single Instance).
  */
 void Servo_Update(Servo_Handle_t *handle);
 

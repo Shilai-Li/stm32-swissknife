@@ -1,9 +1,46 @@
 #include "servo_port.h"
 #include "tim.h"
+#include "uart_driver.h"
+#include "delay_driver.h"
+#include <stdarg.h>
+#include <stdio.h>
 
 /* Global Hardware Instances */
 Motor_Handle_t myMotor;
 PIDController posPID;
+
+extern TIM_HandleTypeDef htim3;
+
+static void Adapter_Log(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    // Since UART_Debug_Printf handles fmt internally or uses a buffer, 
+    // BUT UART_Debug_Printf assumes usage like printf. 
+    // We need to implement a wrapper. 
+    // Assuming UART_Debug_Printf has internal buffering/handling.
+    // If UART_Debug_Printf is NOT vararg, this will fail.
+    // Let's assume UART_Debug_Printf IS vararg (based on previous usages).
+    // Note: C standard doesn't allow forwarding va_list to a ... function easily.
+    // We should use vsnprintf into a buffer.
+    char buf[128];
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    UART_Debug_Printf("%s", buf);
+    va_end(args);
+}
+
+static bool Adapter_ReadChar(uint8_t *c) {
+    return UART_Read(UART_DEBUG_CHANNEL, c);
+}
+
+static void Adapter_DelayMs(uint32_t ms) {
+    HAL_Delay(ms);
+}
+
+const Servo_SystemInterface_t servo_system_interface = {
+    .log = Adapter_Log,
+    .read_char = Adapter_ReadChar,
+    .delay_ms = Adapter_DelayMs
+};
 
 void ServoPort_Init_Hardware_Config(void)
 {
@@ -75,15 +112,35 @@ Servo_Status ServoPort_Init(Servo_Handle_t *handle)
     Servo_Config_t config = {
         .kp = 2.5f,
         .ki = 0.05f,
-        .kd = 0.05f, // Reduced D-term to minimize noise spikes
+        .kd = 0.05f, // Reduced D-term
         .output_limit = 100.0f,
-        .ramp_rate = 1000.0f, // Reduced ramp rate to 1% per ms (smoothing output)
+        .ramp_rate = 1000.0f, // Reduced ramp
         .auto_start = false
     };
 
-    // 3. Inject Dependencies and Init
-    return Servo_Init(handle,
+    // 3. Inject Dependencies and Init (Using System Interface)
+    Servo_Status status = Servo_Init(handle,
                       &servo_motor_driver_interface, &myMotor,
                       &servo_pid_driver_interface, &posPID,
+                      &servo_system_interface,
                       &config);
+
+    if (status == SERVO_OK) {
+        // Start the scheduler timer (1kHz)
+        // Check if already started to avoid re-triggering or just call it safely
+        HAL_TIM_Base_Start_IT(&htim3);
+    }
+
+    return status;
+}
+
+// Global System Interrupt Handler for Timers
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    Delay_TIM_PeriodElapsedCallback(htim); // Chain existing
+    
+    if (htim->Instance == TIM3) {
+        // Trigger the Servo component's scheduler
+        Servo_Scheduler_Tick();
+    }
 }
