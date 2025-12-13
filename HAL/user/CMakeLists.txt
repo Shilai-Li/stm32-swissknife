@@ -7,6 +7,8 @@ message("Selected Test Case: ${TEST_CASE}")
 set(USER_SOURCES
         drivers/delay.c
         drivers/uart.c
+        drivers/soft_i2c.c
+        drivers/soft_spi.c
 )
 
 # Applications
