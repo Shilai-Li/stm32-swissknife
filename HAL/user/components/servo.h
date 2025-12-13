@@ -64,6 +64,29 @@ typedef struct {
     Servo_PID_SetLimit_Fn set_limit; // Added to support 'L' command
 } Servo_PIDInterface_t;
 
+/**
+ * @brief  Guide for Implementing Custom Drivers
+ * 
+ * To use a third-party motor driver or PID library with this Servo component:
+ * 
+ * 1. Define your own Context structure (or use your existing handle type).
+ *    e.g., `typedef struct { ... } MyCustomMotor_t;`
+ * 
+ * 2. Implement "Adapter Functions" ensuring the function signatures match
+ *    the typedefs above (Servo_Motor_Init_Fn, etc.).
+ *    Inside these adapters, cast the `void *ctx` to your handle type and call
+ *    your driver's specific API.
+ * 
+ * 3. Populate a `Servo_MotorInterface_t` or `Servo_PIDInterface_t` struct
+ *    with pointers to your adapter functions.
+ * 
+ * 4. Pass your Custom Context pointer and your Interface struct pointer
+ *    to `Servo_InitInstance`.
+ * 
+ * Refer to `servo_port.c` for a reference implementation using the default
+ * `motor_driver.h` and `algorithms/pid.h`.
+ */
+
 /*******************************************************************************
  * SERVO STATE STRUCTURE
  ******************************************************************************/
