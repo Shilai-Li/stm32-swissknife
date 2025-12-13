@@ -111,6 +111,8 @@ elseif(TEST_CASE STREQUAL "w25qxx")
     list(APPEND USER_SOURCES drivers/w25qxx.c)
 elseif(TEST_CASE STREQUAL "ws2812")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ws2812_tests.c)
+elseif(TEST_CASE STREQUAL "xpt2046")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/xpt2046_tests.c)
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
