@@ -402,3 +402,11 @@ void ssd1306_TestAll() {
     HAL_Delay(3000);
 }
 
+void User_Entry(void)
+{
+    while (1)
+    {
+        ssd1306_TestAll();
+    }
+}
+

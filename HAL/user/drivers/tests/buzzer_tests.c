@@ -1,4 +1,4 @@
-#include "buzzer_driver.h"
+#include "buzzer.h"
 
 void User_Entry(void)
 {

@@ -1,7 +1,7 @@
 #include "servo_port.h"
 #include "tim.h"
-#include "uart_driver.h"
-#include "delay_driver.h"
+#include "uart.h"
+#include "delay.h"
 #include <stdarg.h>
 #include <stdio.h>
 

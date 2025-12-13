@@ -1,4 +1,4 @@
-#include "mpu6050_driver.h"
+#include "mpu6050.h"
 
 #include <string.h>
 

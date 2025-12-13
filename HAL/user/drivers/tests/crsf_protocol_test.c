@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "uart_driver.h"
+#include "uart.h"
 #include "protocols/crsf.h"
 #include "stm32f1xx_hal.h"
 

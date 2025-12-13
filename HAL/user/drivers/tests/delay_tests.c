@@ -1,5 +1,5 @@
-#include "delay_driver.h"
-#include "uart_driver.h"
+#include "delay.h"
+#include "uart.h"
 
 void User_Entry(void)
 {
