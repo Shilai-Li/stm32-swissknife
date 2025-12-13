@@ -11,6 +11,7 @@ set(USER_SOURCES
         drivers/soft_spi.c
         drivers/rs485.c
         drivers/can_driver.c
+        drivers/adc_filter.c
 )
 
 # Applications
@@ -40,6 +41,8 @@ elseif (TEST_CASE STREQUAL "servo")
 elseif(TEST_CASE STREQUAL "at24cxx")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/at24cxx_tests.c)
     list(APPEND USER_SOURCES drivers/at24cxx.c)
+elseif(TEST_CASE STREQUAL "adc")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/adc_tests.c)
 elseif(TEST_CASE STREQUAL "buzzer")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/buzzer_driver_test.c)
     list(APPEND USER_SOURCES drivers/buzzer.c)
