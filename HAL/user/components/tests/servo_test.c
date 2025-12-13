@@ -9,7 +9,10 @@ Motor_Handle_t myMotor;
 PIDController posPID;
 
 // --- Adapter Wrappers for Motor ---
-void Adapter_Motor_Init(void *ctx) { Motor_Init((Motor_Handle_t*)ctx); }
+void Adapter_Motor_Init(void *ctx) { 
+    Motor_Init((Motor_Handle_t*)ctx); 
+    Motor_Encoder_Init((Motor_Handle_t*)ctx);
+}
 void Adapter_Motor_Start(void *ctx) { Motor_Start((Motor_Handle_t*)ctx); }
 void Adapter_Motor_Stop(void *ctx) { Motor_Stop((Motor_Handle_t*)ctx); }
 void Adapter_Motor_SetSpeed(void *ctx, uint8_t speed) { Motor_SetSpeed((Motor_Handle_t*)ctx, speed); }
