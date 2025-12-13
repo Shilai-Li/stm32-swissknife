@@ -120,6 +120,9 @@ elseif(TEST_CASE STREQUAL "esp8266")
         drivers/uart.c
         drivers/delay.c
     )
+elseif(TEST_CASE STREQUAL "flash")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/internal_flash_tests.c)
+    list(APPEND USER_SOURCES drivers/internal_flash.c)
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
