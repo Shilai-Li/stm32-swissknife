@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include "servo.h"
-#include "motor.h"
+#include "dc_motor.h"
 #include "algorithms/pid.h"
 
 // Standard interfaces for the project's default drivers

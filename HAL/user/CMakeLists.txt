@@ -1,5 +1,5 @@
 # Test Case Selection
-set(TEST_CASE "UART" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
+set(TEST_CASE "servo" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -7,14 +7,6 @@ message("Selected Test Case: ${TEST_CASE}")
 set(USER_SOURCES
         drivers/delay.c
         drivers/uart.c
-        drivers/soft_i2c.c
-        drivers/soft_spi.c
-        drivers/rs485.c
-        drivers/can_driver.c
-        drivers/adc_filter.c
-        drivers/hc_sr04.c
-        drivers/stepper_motor.c
-        drivers/servo_motor.c
 )
 
 # Applications
@@ -36,7 +28,7 @@ elseif (TEST_CASE STREQUAL "servo")
     list(APPEND USER_SOURCES
             components/servo.c
             components/servo_port.c
-            drivers/motor.c
+            drivers/dc_motor.c
             middlewares/algorithms/pid.c
     )
 
@@ -94,8 +86,8 @@ elseif(TEST_CASE STREQUAL "ssd1306_custom")
 elseif(TEST_CASE STREQUAL "sd_card_spi")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/sd_card_spi_tests.c)
     list(APPEND USER_SOURCES drivers/sd_card_spi.c)
-elseif(TEST_CASE STREQUAL "servo")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/servo_tests.c)
+elseif(TEST_CASE STREQUAL "servo_motor")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/servo_motor_tests.c)
 elseif(TEST_CASE STREQUAL "soft_i2c")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/afiskon-stm32-ssd1306/ssd1306_tests.c)
     list(APPEND USER_SOURCES
@@ -117,6 +109,8 @@ elseif(TEST_CASE STREQUAL "UART")
 elseif(TEST_CASE STREQUAL "w25qxx")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/w25qxx_test.c)
     list(APPEND USER_SOURCES drivers/w25qxx.c)
+elseif(TEST_CASE STREQUAL "ws2812")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ws2812_tests.c)
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
@@ -133,6 +127,7 @@ target_include_directories(User PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/components
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers
         ${CMAKE_CURRENT_SOURCE_DIR}/middlewares
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(User PUBLIC stm32cubemx)
