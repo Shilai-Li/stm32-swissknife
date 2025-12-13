@@ -13,6 +13,7 @@ set(USER_SOURCES
         drivers/can_driver.c
         drivers/adc_filter.c
         drivers/hc_sr04.c
+        drivers/stepper_motor.c
 )
 
 # Applications
@@ -60,9 +61,6 @@ elseif(TEST_CASE STREQUAL "dht11")
     list(APPEND USER_SOURCES drivers/dht11.c)
 elseif(TEST_CASE STREQUAL "encoder")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/encoder_tests.c)
-    list(APPEND USER_SOURCES 
-            drivers/encoder_knob.c 
-            drivers/encoder_motor.c)
 elseif(TEST_CASE STREQUAL "hc_sr04")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/hc_sr04_tests.c)
 elseif(TEST_CASE STREQUAL "ili9341")
@@ -107,6 +105,9 @@ elseif(TEST_CASE STREQUAL "st7735")
 elseif(TEST_CASE STREQUAL "st7789")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/st7789_tests.c)
     list(APPEND USER_SOURCES drivers/st7789.c)
+elseif(TEST_CASE STREQUAL "stepper")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/stepper_tests.c)
+    list(APPEND USER_SOURCES drivers/stepper_motor.c)
 elseif(TEST_CASE STREQUAL "UART")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/uart_driver_test.c)
     # UART driver is already in common sources
