@@ -7,6 +7,16 @@
 
 static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 
+typedef struct {
+    uint8_t buf[UART_TX_BUF_SIZE];
+    volatile uint16_t head;
+    volatile uint16_t tail;
+    volatile uint8_t busy;
+    uint16_t inflight_len;
+} UART_TxRingBuf;
+
+static UART_TxRingBuf uart_tbuf[UART_CHANNEL_MAX];
+
 // Map UART_Channel to UART_HandleTypeDef*
 static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {
 #if defined USE_UART1
@@ -37,7 +47,7 @@ static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {
 
 static UART_HandleTypeDef* UART_GetHandle(UART_Channel ch)
 {
-    if (ch < 0 || ch >= UART_CHANNEL_MAX) return NULL;
+    if (ch >= UART_CHANNEL_MAX) return NULL;
     return UART_Handles[ch];
 }
 
@@ -49,6 +59,46 @@ static int UART_HandleToChannel(UART_HandleTypeDef *huart)
         }
     }
     return -1;
+}
+
+static void UART_TxKick(UART_Channel ch)
+{
+    UART_HandleTypeDef *huart = UART_GetHandle(ch);
+    if (huart == NULL) return;
+
+    UART_TxRingBuf *tb = &uart_tbuf[ch];
+
+    __disable_irq();
+    if (tb->busy) {
+        __enable_irq();
+        return;
+    }
+    if (tb->head == tb->tail) {
+        __enable_irq();
+        return;
+    }
+
+    uint16_t len = 0;
+    if (tb->head > tb->tail) {
+        len = tb->head - tb->tail;
+    } else {
+        len = UART_TX_BUF_SIZE - tb->tail;
+    }
+    if (len == 0) {
+        __enable_irq();
+        return;
+    }
+
+    tb->busy = 1;
+    tb->inflight_len = len;
+    __enable_irq();
+
+    if (HAL_UART_Transmit_IT(huart, &tb->buf[tb->tail], len) != HAL_OK) {
+        __disable_irq();
+        tb->busy = 0;
+        tb->inflight_len = 0;
+        __enable_irq();
+    }
 }
 
 /* ============================================================================
@@ -87,6 +137,10 @@ void UART_Init(void)
     for (int i = 0; i < UART_CHANNEL_MAX; i++) {
         UART_HandleTypeDef *huart = UART_Handles[i];
         if (huart != NULL){
+            uart_tbuf[i].head = 0;
+            uart_tbuf[i].tail = 0;
+            uart_tbuf[i].busy = 0;
+            uart_tbuf[i].inflight_len = 0;
             HAL_UART_Receive_IT(huart, &uart_rbuf[i].rx_byte, 1);
         }
     }
@@ -99,7 +153,22 @@ void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
 {
     UART_HandleTypeDef *huart = UART_GetHandle(channel);
     if (huart == NULL || data == NULL || len == 0) return;
-    HAL_UART_Transmit(huart, (uint8_t *)data, len, HAL_MAX_DELAY);
+
+    UART_TxRingBuf *tb = &uart_tbuf[channel];
+
+    __disable_irq();
+    for (uint16_t i = 0; i < len; i++) {
+        uint16_t next = (uint16_t)(tb->head + 1);
+        if (next >= UART_TX_BUF_SIZE) next = 0;
+        if (next == tb->tail) {
+            break;
+        }
+        tb->buf[tb->head] = data[i];
+        tb->head = next;
+    }
+    __enable_irq();
+
+    UART_TxKick(channel);
 }
 
 void UART_SendString(UART_Channel channel, const char *str)
@@ -135,6 +204,23 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
     UART_RingBuf_PushFromIRQ((UART_Channel)ch, uart_rbuf[ch].rx_byte);
     HAL_UART_Receive_IT(huart, &uart_rbuf[ch].rx_byte, 1);
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    int ch = UART_HandleToChannel(huart);
+    if (ch < 0 || ch >= UART_CHANNEL_MAX) return;
+
+    UART_TxRingBuf *tb = &uart_tbuf[ch];
+
+    tb->tail = (uint16_t)(tb->tail + tb->inflight_len);
+    if (tb->tail >= UART_TX_BUF_SIZE) {
+        tb->tail = (uint16_t)(tb->tail - UART_TX_BUF_SIZE);
+    }
+    tb->inflight_len = 0;
+    tb->busy = 0;
+
+    UART_TxKick((UART_Channel)ch);
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)

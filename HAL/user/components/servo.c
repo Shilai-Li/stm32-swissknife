@@ -325,12 +325,9 @@ void Process_Command(char* cmd)
 
         case 'R':
         case 'r':
-            UART_Debug_Printf("[DEBUG] Raw cmd: '%s', Parsing substring: '%s'\r\n", cmd, &cmd[1]);
             value = atoi(&cmd[1]);
-            UART_Debug_Printf("[DEBUG] Parsed Value: %ld (0x%08lX)\r\n", value, value);
         {
             int32_t new_target = s->target_pos + Degrees_To_Pulses(value);
-            UART_Debug_Printf("[CMD] Rotate %ld degrees (new target: %ld pulses)\r\n", value, new_target);
             Servo_SetTargetInstance(h, new_target);
         }
             break;

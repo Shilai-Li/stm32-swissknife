@@ -52,6 +52,10 @@ typedef enum {
 #define UART_RX_BUF_SIZE  256
 #endif
 
+#ifndef UART_TX_BUF_SIZE
+#define UART_TX_BUF_SIZE  512
+#endif
+
 #ifndef UART_DEBUG_CHANNEL
 #define UART_DEBUG_CHANNEL UART_CHANNEL_2
 #endif

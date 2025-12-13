@@ -42,7 +42,10 @@ void User_Entry(void)
     UART_Debug_Printf("> ");
 
     uint32_t last_status_print = 0;
+    uint32_t last_ok_print = 0;
     uint8_t was_moving = 0;
+    int32_t last_reported_target = 0;
+    uint8_t has_reported_target = 0;
 
     while (1) {
         // Check for error state
@@ -66,20 +69,28 @@ void User_Entry(void)
             was_moving = 1;
         }
         else if (was_moving) {
-            was_moving = 0;
-            UART_Debug_Printf("[OK] Reached target: %ld deg\r\n> ", 
-                (int32_t)servo.actual_pos);
+            int32_t tgt = (int32_t)servo.target_pos;
+            int32_t pos = (int32_t)servo.actual_pos;
+            int32_t diff = pos - tgt;
+            if (diff < 0) diff = -diff;
+
+            if (diff <= SERVO_POS_TOLERANCE) {
+                if ((!has_reported_target || tgt != last_reported_target) && (HAL_GetTick() - last_ok_print > 200)) {
+                    last_ok_print = HAL_GetTick();
+                    last_reported_target = tgt;
+                    has_reported_target = 1;
+                    was_moving = 0;
+                    UART_Debug_Printf("[OK] Target:%ld Pos:%ld\r\n> ", tgt, pos);
+                }
+            }
         }
         
-        // Periodic status update (every 500ms, only when moving)
-        if (!servo.is_at_target && (HAL_GetTick() - last_status_print > 500)) {
+        // Periodic status update (only when moving)
+        if (!servo.is_at_target && (HAL_GetTick() - last_status_print > 1500)) {
             last_status_print = HAL_GetTick();
-            // Use integer format for embedded printf compatibility
-            UART_Debug_Printf("[MOVING] Pos:%ld Tgt:%ld Vel:%ld PWM:%ld\r\n", 
-                (int32_t)servo.actual_pos, 
-                (int32_t)servo.target_pos,
-                (int32_t)servo.setpoint_vel,
-                (int32_t)debug_last_pwm);
+            UART_Debug_Printf("[MOVING] Pos:%ld Tgt:%ld\r\n",
+                (int32_t)servo.actual_pos,
+                (int32_t)servo.target_pos);
         }
     }
 }
