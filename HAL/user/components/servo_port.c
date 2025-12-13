@@ -1,6 +1,22 @@
 #include "servo_port.h"
-#include "motor_driver.h"
-#include "algorithms/pid.h"
+
+#include "tim.h"
+
+Motor_Handle_t myMotor;
+PIDController posPID;
+
+void Servo_Port_Init_Default_Config(void)
+{
+    // Default Hardware Configuration for this project
+    myMotor.htim = &htim1;
+    myMotor.channel = TIM_CHANNEL_1;
+    myMotor.pwm_period = 99;
+    myMotor.en_port = GPIOC;
+    myMotor.en_pin = GPIO_PIN_15;
+    myMotor.dir_port = GPIOB;
+    myMotor.dir_pin = GPIO_PIN_13;
+    myMotor.htim_enc = &htim2;
+}
 
 // --- Adapter Wrappers for Motor ---
 static void Adapter_Motor_Init(void *ctx) { 

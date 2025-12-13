@@ -1,13 +1,6 @@
 #include "uart_driver.h"
-#include "servo.h"
-#include "servo_port.h"
-#include "tim.h"
-#include "motor_driver.h"
-#include "algorithms/pid.h"
 
-// Define Global Instances Here (moved from servo.c)
-Motor_Handle_t myMotor;
-PIDController posPID;
+#include "servo_port.h"
 
 void User_Entry(void)
 {
@@ -26,25 +19,9 @@ void User_Entry(void)
     servo0.error_state = &servo_error_state;
 
     Servo_Config_t cfg;
-    // Note: Hardware config is now populated into the Motor_Handle_t *ctx via user code 
-    // OR we need to populate myMotor struct before passing it?
-    // Originally Servo_Init populated the Motor struct from cfg.
-    // Now Servo_Init calls motor_if->init().
     
-    // We need to configure the myMotor struct manually here or pass the config to the adapter?
-    // The adapter just blindly calls Motor_Init with the ctx.
-    // So 'myMotor' needs to be configured BEFORE Init is called,
-    // OR Motor_Init uses the fields values.
-    
-    // Let's populate myMotor directly here:
-    myMotor.htim = &htim1;
-    myMotor.channel = TIM_CHANNEL_1;
-    myMotor.pwm_period = 99;
-    myMotor.en_port = GPIOC;
-    myMotor.en_pin = GPIO_PIN_15;
-    myMotor.dir_port = GPIOB;
-    myMotor.dir_pin = GPIO_PIN_13;
-    myMotor.htim_enc = &htim2;
+    // Initialize default hardware config
+    Servo_Port_Init_Default_Config();
     
     // Config for PID/Logic
     cfg.kp = servo_kp;
