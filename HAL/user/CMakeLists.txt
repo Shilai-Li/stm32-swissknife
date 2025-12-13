@@ -14,6 +14,7 @@ set(USER_SOURCES
         drivers/adc_filter.c
         drivers/hc_sr04.c
         drivers/stepper_motor.c
+        drivers/servo_motor.c
 )
 
 # Applications
@@ -93,7 +94,9 @@ elseif(TEST_CASE STREQUAL "ssd1306_custom")
 elseif(TEST_CASE STREQUAL "sd_card_spi")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/sd_card_spi_tests.c)
     list(APPEND USER_SOURCES drivers/sd_card_spi.c)
-elseif(TEST_CASE STREQUAL "SSD1306")
+elseif(TEST_CASE STREQUAL "servo")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/servo_tests.c)
+elseif(TEST_CASE STREQUAL "soft_i2c")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/afiskon-stm32-ssd1306/ssd1306_tests.c)
     list(APPEND USER_SOURCES
             drivers/afiskon-stm32-ssd1306/ssd1306.c
