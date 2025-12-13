@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
-#include "uart_driver.h"
 #include "servo_port.h"
+#include "uart_driver.h"
 
 void User_Entry(void)
 {
