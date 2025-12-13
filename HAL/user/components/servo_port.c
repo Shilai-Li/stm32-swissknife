@@ -1,20 +1,26 @@
 #include "servo_port.h"
-
 #include "tim.h"
 
+/* Global Hardware Instances */
 Motor_Handle_t myMotor;
 PIDController posPID;
 
-void Servo_Port_Init_Default_Config(void)
+void ServoPort_Init_Hardware_Config(void)
 {
-    // Default Hardware Configuration for this project
+    // Default Hardware Configuration for this project (Using STM32 HAL)
     myMotor.htim = &htim1;
     myMotor.channel = TIM_CHANNEL_1;
-    myMotor.pwm_period = 99;
+    myMotor.pwm_period = 99; // 100 counts -> 20kHz if APB2 is 72Mhz with Prescaler
+    
+    // Enable Pins
     myMotor.en_port = GPIOC;
     myMotor.en_pin = GPIO_PIN_15;
+    
+    // Direction Pins
     myMotor.dir_port = GPIOB;
     myMotor.dir_pin = GPIO_PIN_13;
+    
+    // Encoder Timer
     myMotor.htim_enc = &htim2;
 }
 
@@ -54,3 +60,30 @@ const Servo_PIDInterface_t servo_pid_driver_interface = {
     .compute = Adapter_PID_Compute,
     .set_limit = Adapter_PID_SetLimit
 };
+
+/**
+ * @brief  One-stop initialization for the default servo setup
+ */
+Servo_Status ServoPort_Init(Servo_Handle_t *handle)
+{
+    if (!handle) return SERVO_ERROR;
+
+    // 1. Configure Hardware Structs
+    ServoPort_Init_Hardware_Config();
+
+    // 2. Define Servo Control Config
+    Servo_Config_t config = {
+        .kp = 2.5f,
+        .ki = 0.05f,
+        .kd = 0.05f, // Reduced D-term to minimize noise spikes
+        .output_limit = 100.0f,
+        .ramp_rate = 1000.0f, // Reduced ramp rate to 1% per ms (smoothing output)
+        .auto_start = false
+    };
+
+    // 3. Inject Dependencies and Init
+    return Servo_Init(handle,
+                      &servo_motor_driver_interface, &myMotor,
+                      &servo_pid_driver_interface, &posPID,
+                      &config);
+}

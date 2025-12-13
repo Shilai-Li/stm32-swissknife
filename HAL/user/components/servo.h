@@ -1,174 +1,151 @@
 #ifndef SERVO_H
 #define SERVO_H
 
-#include "stm32f1xx_hal.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <math.h>
 
 /*******************************************************************************
- * SERVO CONTROL PARAMETERS
+ * CONSTANTS & DEFAULTS
  ******************************************************************************/
-// Mechanical/Control Constraints
-#define SERVO_MAX_VELOCITY      10000.0f  // Pulses per second
-#define SERVO_ACCELERATION      50000.0f  // Pulses per second^2
+#define SERVO_MAX_VELOCITY      10000.0f  // Pulses/sec
+#define SERVO_ACCELERATION      50000.0f  // Pulses/sec^2
 #define SERVO_DECELERATION      50000.0f  
-#define SERVO_POS_TOLERANCE     2         // Deadband in pulses
-#define CONTROL_LOOP_FREQ       1000.0f   // 1kHz
-#define CONTROL_DT              (1.0f/CONTROL_LOOP_FREQ)
-
-// PID Gains (Position Loop)
-// Note: These need tuning based on motor voltage and load
-#define SERVO_KP_DEFAULT        2.5f
-#define SERVO_KI_DEFAULT        0.05f
-#define SERVO_KD_DEFAULT        0.10f
-#define SERVO_PID_LIMIT_DEFAULT 100.0f    // Max PWM Duty %
+#define SERVO_POS_TOLERANCE     2         // Deadband (pulses)
+#define SERVO_LOOP_FREQ         1000.0f   // 1kHz
+#define SERVO_DT                (1.0f / SERVO_LOOP_FREQ)
 
 /*******************************************************************************
- * ENCODER CONFIGURATION
+ * ENUMS & TYPES
  ******************************************************************************/
-#define ENCODER_PULSES_PER_REV  360
-#define DEGREES_TO_PULSES(deg)  (deg)  // 1:1 mapping for 360 pulse encoder
-#define PULSES_TO_DEGREES(pulses) ((float)(pulses))  // Direct 1:1 conversion
+
+typedef enum {
+    SERVO_OK = 0,
+    SERVO_ERROR = 1
+} Servo_Status;
 
 /*******************************************************************************
- * INTERFACE DEFINITIONS
+ * INTERFACES
  ******************************************************************************/
 
-/* Motor Interface */
-typedef void (*Servo_Motor_Init_Fn)(void *ctx);
-typedef void (*Servo_Motor_Start_Fn)(void *ctx);
-typedef void (*Servo_Motor_Stop_Fn)(void *ctx);
-typedef void (*Servo_Motor_SetSpeed_Fn)(void *ctx, uint8_t speed);
-typedef void (*Servo_Motor_SetDirection_Fn)(void *ctx, uint8_t dir);
-typedef int32_t (*Servo_Motor_GetEncoder_Fn)(void *ctx);
-typedef void (*Servo_Motor_ResetEncoder_Fn)(void *ctx, int32_t val);
-
+/* Abstract Motor Interface */
 typedef struct {
-    Servo_Motor_Init_Fn init;
-    Servo_Motor_Start_Fn start;
-    Servo_Motor_Stop_Fn stop;
-    Servo_Motor_SetSpeed_Fn set_speed;
-    Servo_Motor_SetDirection_Fn set_direction;
-    Servo_Motor_GetEncoder_Fn get_encoder;
-    Servo_Motor_ResetEncoder_Fn reset_encoder;
+    void    (*init)(void *ctx);
+    void    (*start)(void *ctx);
+    void    (*stop)(void *ctx);
+    void    (*set_speed)(void *ctx, uint8_t speed);
+    void    (*set_direction)(void *ctx, uint8_t dir);
+    int32_t (*get_encoder)(void *ctx);
+    void    (*reset_encoder)(void *ctx, int32_t val);
 } Servo_MotorInterface_t;
 
-/* PID Interface */
-typedef void (*Servo_PID_Init_Fn)(void *ctx, float p, float i, float d, float limit, float ramp);
-typedef void (*Servo_PID_Reset_Fn)(void *ctx);
-typedef float (*Servo_PID_Compute_Fn)(void *ctx, float error, float dt);
-typedef void (*Servo_PID_SetLimit_Fn)(void *ctx, float limit); // Optional helper if needed
-
+/* Abstract PID Interface */
 typedef struct {
-    Servo_PID_Init_Fn init;
-    Servo_PID_Reset_Fn reset;
-    Servo_PID_Compute_Fn compute;
-    Servo_PID_SetLimit_Fn set_limit; // Added to support 'L' command
+    void  (*init)(void *ctx, float p, float i, float d, float limit, float ramp);
+    void  (*reset)(void *ctx);
+    float (*compute)(void *ctx, float error, float dt);
+    void  (*set_limit)(void *ctx, float limit); 
 } Servo_PIDInterface_t;
 
-/**
- * @brief  Guide for Implementing Custom Drivers
- * 
- * To use a third-party motor driver or PID library with this Servo component:
- * 
- * 1. Define your own Context structure (or use your existing handle type).
- *    e.g., `typedef struct { ... } MyCustomMotor_t;`
- * 
- * 2. Implement "Adapter Functions" ensuring the function signatures match
- *    the typedefs above (Servo_Motor_Init_Fn, etc.).
- *    Inside these adapters, cast the `void *ctx` to your handle type and call
- *    your driver's specific API.
- * 
- * 3. Populate a `Servo_MotorInterface_t` or `Servo_PIDInterface_t` struct
- *    with pointers to your adapter functions.
- * 
- * 4. Pass your Custom Context pointer and your Interface struct pointer
- *    to `Servo_InitInstance`.
- * 
- * Refer to `servo_port.c` for a reference implementation using the default
- * `motor_driver.h` and `algorithms/pid.h`.
- */
-
 /*******************************************************************************
- * SERVO STATE STRUCTURE
+ * DATA STRUCTURES
  ******************************************************************************/
+
+/* Runtime State (Read-Only for User) */
 typedef struct {
-    int32_t target_pos;         // Final desired position
-    float   setpoint_pos;       // Current internal setpoint (Trajectory generator output)
-    float   setpoint_vel;       // Current internal velocity
-    int32_t actual_pos;         // Actual encoder position
-    uint8_t is_at_target;       // Flag 1=Yes, 0=No
+    int32_t target_pos;         // Target position (pulses)
+    float   setpoint_pos;       // Trajectory generator output
+    float   setpoint_vel;       // Current trajectory velocity
+    int32_t actual_pos;         // Current encoder reading
+    bool    is_at_target;       // Position reached flag
 } Servo_State_t;
 
+/* Configuration */
 typedef struct {
-    // Hardware config is now largely handled by the context/adapter, 
-    // but these values might still be used for PID Init or logic.
-    float kp;
-    float ki;
-    float kd;
-    float pid_limit;
-    float pid_ramp;
-    uint8_t auto_start;
+    float   kp;
+    float   ki;
+    float   kd;
+    float   output_limit;
+    float   ramp_rate;
+    bool    auto_start;
 } Servo_Config_t;
 
+/* Main Servo Handle */
 typedef struct {
-    void *motor_context;
+    // Dependencies (Injected)
+    void *motor_ctx;
     const Servo_MotorInterface_t *motor_if;
     
-    void *pid_context;
+    void *pid_ctx;
     const Servo_PIDInterface_t *pid_if;
     
-    volatile Servo_State_t *state;
-    volatile uint32_t *debug_counter;
-    volatile float *debug_last_pwm;
-    volatile uint8_t *enabled;
-    volatile uint8_t *error_state;
-    volatile uint32_t debug_counter_storage;
-    volatile float debug_last_pwm_storage;
-    volatile uint8_t enabled_storage;
-    volatile uint8_t error_state_storage;
-    uint32_t high_load_duration;
-    int32_t load_start_pos;
-    float kp;
-    float ki;
-    float kd;
-    float pid_limit;
+    // Internal Data
+    Servo_Config_t config;
+    volatile Servo_State_t state;
+    
+    // Status & Safety
+    volatile bool enabled;
+    volatile bool error;
+    
+    // Diagnostics / Internal Logic
+    uint32_t debug_counter;
+    float    debug_last_output;
+    uint32_t overload_counter;
+    int32_t  overload_start_pos;
 } Servo_Handle_t;
 
 /*******************************************************************************
- * GLOBAL VARIABLES
- ******************************************************************************/
-extern volatile Servo_State_t servo;
-extern volatile float servo_kp;
-extern volatile float servo_ki;
-extern volatile float servo_kd;
-extern volatile float servo_pid_limit;
-extern volatile uint8_t servo_enabled;
-extern volatile uint8_t servo_error_state;
-extern volatile uint32_t debug_counter;
-extern volatile float debug_last_pwm;
-
-// Removed direct externs to Motor/PID objects
-// extern Motor_Handle_t myMotor;
-// extern PIDController posPID;
-
-/*******************************************************************************
- * FUNCTION PROTOTYPES
+ * PUBLIC API
  ******************************************************************************/
 
-HAL_StatusTypeDef Servo_InitInstance(Servo_Handle_t *handle,
-                                      void *motor_ctx,
-                                      const Servo_MotorInterface_t *motor_if,
-                                      void *pid_ctx,
-                                      const Servo_PIDInterface_t *pid_if,
-                                      volatile Servo_State_t *state,
-                                      const Servo_Config_t *cfg);
-void Servo_SetTargetInstance(Servo_Handle_t *handle, int32_t position);
-uint8_t Servo_IsAtTargetInstance(Servo_Handle_t *handle);
-void Servo_UpdateInstance_1kHz(Servo_Handle_t *handle);
+/**
+ * @brief Initialize the Servo instance.
+ */
+Servo_Status Servo_Init(Servo_Handle_t *handle,
+                             const Servo_MotorInterface_t *motor_if, void *motor_ctx,
+                             const Servo_PIDInterface_t *pid_if, void *pid_ctx,
+                             const Servo_Config_t *config);
 
-/* Command Processing */
-void Process_Command(char* cmd);
+/**
+ * @brief Set a new target position (absolute pulses).
+ */
+void Servo_SetTarget(Servo_Handle_t *handle, int32_t position);
+
+/**
+ * @brief Check if servo has reached the target.
+ */
+bool Servo_IsAtTarget(Servo_Handle_t *handle);
+
+/**
+ * @brief Main Control Loop Update (Call at 1kHz).
+ */
+void Servo_Update(Servo_Handle_t *handle);
+
+/**
+ * @brief Stop motor and disable control loop.
+ */
+void Servo_Stop(Servo_Handle_t *handle);
+
+/**
+ * @brief Start/Enable control loop.
+ */
+void Servo_Start(Servo_Handle_t *handle);
+
+/* Utilities */
+int32_t Servo_DegreesToPulses(float degrees);
+float   Servo_PulsesToDegrees(int32_t pulses);
+
+/* CLI / Debug Support */
+void Servo_ProcessCommand(Servo_Handle_t *handle, char* cmd);
+void Servo_RunEncoderTest(Servo_Handle_t *handle);
 void Poll_UART_Commands(void);
 
-void Test_Encoder_Readings(void);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SERVO_H */
