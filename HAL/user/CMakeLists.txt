@@ -76,6 +76,9 @@ elseif(TEST_CASE STREQUAL "SSD1306")
             drivers/afiskon-stm32-ssd1306/ssd1306.c
             drivers/afiskon-stm32-ssd1306/ssd1306_fonts.c
     )
+elseif(TEST_CASE STREQUAL "st7735")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/st7735_tests.c)
+    list(APPEND USER_SOURCES drivers/st7735.c)
 elseif(TEST_CASE STREQUAL "st7789")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/st7789_tests.c)
     list(APPEND USER_SOURCES drivers/st7789.c)
