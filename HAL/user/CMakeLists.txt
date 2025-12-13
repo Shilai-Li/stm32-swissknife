@@ -10,6 +10,7 @@ set(USER_SOURCES
         drivers/soft_i2c.c
         drivers/soft_spi.c
         drivers/rs485.c
+        drivers/can_driver.c
 )
 
 # Applications
@@ -42,6 +43,8 @@ elseif(TEST_CASE STREQUAL "at24cxx")
 elseif(TEST_CASE STREQUAL "buzzer")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/buzzer_driver_test.c)
     list(APPEND USER_SOURCES drivers/buzzer.c)
+elseif(TEST_CASE STREQUAL "can")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/can_tests.c)
 elseif (TEST_CASE STREQUAL "CRSF")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/crsf_protocol_test.c)
     list(APPEND USER_SOURCES middlewares/protocols/crsf.c)
