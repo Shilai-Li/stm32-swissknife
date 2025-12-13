@@ -9,6 +9,7 @@ set(USER_SOURCES
         drivers/uart.c
         drivers/soft_i2c.c
         drivers/soft_spi.c
+        drivers/rs485.c
 )
 
 # Applications
@@ -67,7 +68,9 @@ elseif(TEST_CASE STREQUAL "motor")
 elseif(TEST_CASE STREQUAL "mpu6050")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/mpu6050_driver_test.c)
     list(APPEND USER_SOURCES drivers/mpu6050.c)
-elseif(TEST_CASE STREQUAL "SSD1306_CUSTOM")
+elseif(TEST_CASE STREQUAL "rs485")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/rs485_tests.c)
+elseif(TEST_CASE STREQUAL "ssd1306_custom")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ssd1306_custom_tests.c)
     list(APPEND USER_SOURCES
             drivers/afiskon-stm32-ssd1306/ssd1306.c
