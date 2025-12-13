@@ -27,6 +27,7 @@ elseif (TEST_CASE STREQUAL "servo_test")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
     list(APPEND USER_SOURCES
             components/servo.c
+            components/servo_port.c
             drivers/motor_driver.c
             middlewares/algorithms/pid.c
     )
