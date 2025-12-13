@@ -7,7 +7,6 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <math.h>
 
 /*******************************************************************************
  * CONSTANTS & DEFAULTS
@@ -110,45 +109,19 @@ typedef struct {
 /*******************************************************************************
  * PUBLIC API
  ******************************************************************************/
-
-/**
- * @brief Initialize the Servo instance.
- */
+    
 Servo_Status Servo_Init(Servo_Handle_t *handle,
                              const Servo_MotorInterface_t *motor_if, void *motor_ctx,
                              const Servo_PIDInterface_t *pid_if, void *pid_ctx,
                              const Servo_SystemInterface_t *sys_if,
                              const Servo_Config_t *config);
 
-/**
- * @brief Set a new target position (absolute pulses).
- */
-void Servo_SetTarget(Servo_Handle_t *handle, int32_t position);
-
-/**
- * @brief Check if servo has reached the target.
- */
-bool Servo_IsAtTarget(Servo_Handle_t *handle);
-
-/**
- * @brief Trigger a 1kHz Control Loop Step (Call this from your Timer ISR).
- */
-void Servo_Scheduler_Tick(void);
-
-/**
- * @brief Main Control Loop Update (Single Instance).
- */
-void Servo_Update(Servo_Handle_t *handle);
-
-/**
- * @brief Stop motor and disable control loop.
- */
-void Servo_Stop(Servo_Handle_t *handle);
-
-/**
- * @brief Start/Enable control loop.
- */
-void Servo_Start(Servo_Handle_t *handle);
+void Servo_SetTarget(Servo_Handle_t *handle, int32_t position); // Set a new target position (absolute pulses)
+bool Servo_IsAtTarget(Servo_Handle_t *handle);                  // Check if servo has reached the target
+void Servo_Scheduler_Tick(void);                                // Trigger a 1kHz Control Loop Step (Call this from your Timer ISR)
+void Servo_Update(Servo_Handle_t *handle);                      // Main Control Loop Update (Single Instance)
+void Servo_Stop(Servo_Handle_t *handle);                        // Stop motor and disable control loop
+void Servo_Start(Servo_Handle_t *handle);                       // Start/Enable control loop
 
 /* Utilities */
 int32_t Servo_DegreesToPulses(float degrees);
