@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include "uart_driver.h"
-#include "crsf.h"
+#include "protocols/crsf.h"
 #include "stm32f1xx_hal.h"
 
 void User_Entry(void)
@@ -26,7 +26,6 @@ void User_Entry(void)
             // Note: This is coarse but might suffice for basic timeout logic
             crsf_process_byte(rx_byte, HAL_GetTick() * 1000);
         }
-
         // 2. Periodically print channel data to UART2 (PC)
         if (HAL_GetTick() - last_print_time > 20) // 50Hz update
         {
