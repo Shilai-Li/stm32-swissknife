@@ -1,9 +1,42 @@
 /**
  * @file usb_serial.h
  * @brief USB CDC Virtual Serial Port Wrapper
- * @details Provides a RingBuffer interface for USB CDC (Virtual COM Port).
- *          Makes USB usage as simple as UART.
- * @note    Requires CubeMX generated "USB Device" -> "Communication Device Class (VCP)".
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 
+ * 1. Enable USB in CubeMX:
+ *    - Connectivity -> USB -> Device (FS)
+ *    - Middleware -> USB_DEVICE -> Class For FS IP -> Communication Device Class (VCP)
+ *    - Generate Code.
+ * 
+ * 2. Modify 'USB_DEVICE/App/usbd_cdc_if.c':
+ *    
+ *    a) Add Include:
+ *       / * USER CODE BEGIN Includes * /
+ *       #include "drivers/usb_serial.h"
+ *       / * USER CODE END Includes * /
+ * 
+ *    b) Modify 'CDC_Receive_FS' function:
+ *       static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
+ *       {
+ *         / * USER CODE BEGIN 6 * /
+ *         
+ *         // === ADD THIS LINE ===
+ *         USB_Serial_RxCallback(Buf, *Len);
+ *         // =====================
+ * 
+ *         USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
+ *         USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+ *         return (USBD_OK);
+ *         / * USER CODE END 6 * /
+ *       }
+ * 
+ * 3. Use in main.c:
+ *    USB_Serial_Init();
+ *    USB_Serial_Printf("Hello World\n");
+ * =================================================================================
  */
 
 #ifndef USB_SERIAL_H

@@ -153,6 +153,13 @@ elseif(TEST_CASE STREQUAL "pot")
 elseif(TEST_CASE STREQUAL "buzzer")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/buzzer_tests.c)
     list(APPEND USER_SOURCES drivers/buzzer.c)
+elseif(TEST_CASE STREQUAL "ir")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ir_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/ir_nec_exti.c
+        drivers/ir_nec_tim.c
+        drivers/delay.c
+    )
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
