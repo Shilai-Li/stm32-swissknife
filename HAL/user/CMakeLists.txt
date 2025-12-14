@@ -206,6 +206,15 @@ elseif(TEST_CASE STREQUAL "u8g2")
     
     list(APPEND USER_SOURCES ${U8G2_SOURCES})
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/u8g2 components)
+elseif(TEST_CASE STREQUAL "lfs")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/littlefs_tests.c)
+    list(APPEND USER_SOURCES 
+        components/littlefs/lfs.c
+        components/littlefs/lfs_util.c
+        components/littlefs_port.c
+        drivers/w25qxx.c
+    )
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/littlefs components)
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
