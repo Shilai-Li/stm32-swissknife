@@ -1,8 +1,23 @@
 /**
  * @file w25qxx.h
  * @brief W25Qxx SPI Flash Driver Header File
- * @author Standard Implementation
- * @date 2024
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Connectivity -> SPIx):
+ *    - Mode: Full-Duplex Master
+ *    - Data Size: 8 bits
+ *    - Prescaler: Low enough (e.g. 18MHz max usually safe, chip supports up to 80MHz)
+ *    - CPOL: High, CPHA: 2 Edge (Mode 3) usually preferred for Flash, but Mode 0 often works.
+ *      * CHECK DATASHEET: W25Qxx usually supports Mode 0 and Mode 3.
+ * 
+ * 2. GPIO:
+ *    - CS (Chip Select): Any GPIO Output.
+ * 
+ * 3. Usage:
+ *    W25Q_Init(&hspi1, GPIOB, GPIO_PIN_12);
+ * =================================================================================
  */
 
 #ifndef __W25QXX_H

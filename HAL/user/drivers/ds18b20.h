@@ -1,7 +1,22 @@
 /**
  * @file ds18b20.h
  * @brief DS18B20 OneWire Temperature Sensor Driver
- * @details Implements 1-Wire protocol using simple GPIO bit-banging with microsecond delays.
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (GPIO):
+ *    - Select a Pin (e.g. PB1).
+ *    - Mode: Output Open Drain (Strongly Recommended).
+ *    - Pull-up: None (External 4.7k Pull-up Resistor required).
+ *    - Speed: Medium/High.
+ * 
+ * 2. Dependencies:
+ *    - Requires 'delay.h' for Delay_us().
+ * 
+ * 3. Wiring:
+ *    - DS18B20 DQ pin -> GPIO (with 4.7k to 3.3V).
+ * =================================================================================
  */
 
 #ifndef DS18B20_H

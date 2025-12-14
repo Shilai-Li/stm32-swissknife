@@ -1,8 +1,25 @@
 /**
  * @file hc_sr04.h
  * @brief HC-SR04 Ultrasonic Sensor Driver Header File
- * @author Standard Implementation
- * @date 2024
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Timers):
+ *    - Select a Timer (e.g., TIM4).
+ *    - Prescaler (PSC): Set so Counter Clock is 1MHz (1us per tick).
+ *       * Example: 72MHz Clock -> PSC = 71.
+ *    - Period (ARR): Max (0xFFFF).
+ *    - Enable "TIM4 global interrupt" (Optional, if using interrupts, logic handles polling).
+ * 
+ * 2. GPIO:
+ *    - Trig Pin: Output Push-Pull.
+ *    - Echo Pin: Input.
+ * 
+ * 3. Usage:
+ *    HCSR04_Init(&h, &htim4, GPIOA, TRIG, GPIOA, ECHO);
+ *    // Start Timer manually: HAL_TIM_Base_Start(&htim4);
+ * =================================================================================
  */
 
 #ifndef __HC_SR04_H

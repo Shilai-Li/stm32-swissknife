@@ -1,7 +1,21 @@
 /**
  * @file watchdog.h
  * @brief Independent Watchdog (IWDG) Driver
- * @details Simplifies IWDG setup by taking milliseconds instead of prescalers.
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (System Core -> IWDG):
+ *    - Activated: Checked
+ *    - Parameters: You can leave defaults or set them.
+ *      * THIS DRIVER OVERWRITES THEM!
+ *      * The Watchdog_Init() function will re-calculate and re-init registers
+ *        to match your requested timeout_ms.
+ * 
+ * 2. Note:
+ *    Once LSI is enabled and IWDG started, it CANNOT be stopped until reset.
+ *    Debug mode might pause it if DBGMCU config allows.
+ * =================================================================================
  */
 
 #ifndef WATCHDOG_H

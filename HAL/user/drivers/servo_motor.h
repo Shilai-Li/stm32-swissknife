@@ -1,8 +1,23 @@
 /**
  * @file servo_motor.h
  * @brief RC Servo Motor Driver Header File
- * @author Standard Implementation
- * @date 2024
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Timers -> PWM Generation):
+ *    - Channel x: PWM Generation CHx
+ *    - Prescaler (PSC): Set to obtain 1MHz Counter Clock (1us tick).
+ *       * Example: 72MHz -> PSC = 71.
+ *    - Period (ARR): 20000 - 1 (for 20ms / 50Hz).
+ * 
+ * 2. Wiring:
+ *    - Servo Signal -> TIMx_CHx Pin.
+ *    - Servo VCC -> 5V (Not 3.3V!).
+ * 
+ * 3. Usage:
+ *    Servo_Motor_Init(&myservo, &htim2, TIM_CHANNEL_1);
+ * =================================================================================
  */
 
 #ifndef __SERVO_MOTOR_H

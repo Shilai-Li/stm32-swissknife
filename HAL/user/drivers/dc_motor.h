@@ -1,3 +1,22 @@
+/**
+ * @file dc_motor.h
+ * @brief DC Motor Driver (H-Bridge / PWM)
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Timers -> PWM Generation):
+ *    - Channel x: PWM Generation CHx
+ *    - Prescaler/Period: Set for 10kHz - 20kHz PWM freq.
+ *      * Example 72MHz Class: PSC=0, ARR=3599 -> 20kHz.
+ * 
+ * 2. GPIO:
+ *    - DIR / EN pins: Output Push-Pull.
+ * 
+ * 3. Usage:
+ *    Motor_Init(&hmotor, &htim1, TIM_CHANNEL_1, GPIOA, PIN_1, GPIOA, PIN_2);
+ * =================================================================================
+ */
 #ifndef MOTOR_DRIVER_H
 #define MOTOR_DRIVER_H
 

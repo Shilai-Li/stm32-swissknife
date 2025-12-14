@@ -1,5 +1,23 @@
-#ifndef __DHT11_DRIVER_H__
-#define __DHT11_DRIVER_H__
+/**
+ * @file dht11.h
+ * @brief DHT11 Temperature & Humidity Sensor Driver
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (System Core -> GPIO):
+ *    - Select a Pin (e.g., PA1).
+ *    - Mode: Output Open Drain (Preferred) or Push-Pull.
+ *    - Speed: Low/Medium.
+ *    - Label: (Optional) DHT11_PIN
+ * 
+ * 2. Note:
+ *    - This driver manages pin direction (Input/Output) switching on the fly
+ *      if using Push-Pull.
+ *    - Requires 'delay.h' for microsecond delays.
+ *    - Connect 4.7k - 10k Pull-up resistor between VCC and Data if using Open Drain.
+ * =================================================================================
+ */
 
 #ifdef __cplusplus
 extern "C" {

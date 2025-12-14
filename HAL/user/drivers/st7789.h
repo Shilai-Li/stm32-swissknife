@@ -1,8 +1,26 @@
 /**
  * @file st7789.h
  * @brief ST7789 SPI TFT LCD Driver Header File
- * @author Standard Implementation
- * @date 2024
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Connectivity -> SPIx):
+ *    - Mode: Transmit Only Master (or Full-Duplex Master)
+ *    - Data Size: 8 bits
+ *    - Prescaler: As fast as possible (e.g. 36MHz or 18MHz).
+ *    - CPOL: High, CPHA: 2 Edge (Mode 3 usually, or Mode 0).
+ *      * ST7789 is versatile, usually Mode 3 works best.
+ * 
+ * 2. DMA (Optional but Recommended):
+ *    - SPIx_TX: Priority High, Mode Normal, Data Width Byte.
+ * 
+ * 3. GPIO:
+ *    - CS (Chip Select): Output.
+ *    - DC (Data/Command): Output.
+ *    - RES (Reset): Output.
+ *    - BLK (Backlight): Output (or PWM).
+ * =================================================================================
  */
 
 #ifndef __ST7789_H

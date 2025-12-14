@@ -1,7 +1,25 @@
 /**
  * @file nrf24l01.h
  * @brief NRF24L01+ 2.4GHz Wireless Module Driver
- * @details Supports SPI hardware interface.
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Connectivity -> SPIx):
+ *    - Mode: Full-Duplex Master
+ *    - Data Size: 8 bits
+ *    - Prescaler: Set baud rate < 10 MBits/s (e.g. 4 MBits/s)
+ *    - CPOL: Low, CPHA: 1 Edge (Mode 0) or High/2 Edge? 
+ *      * NRF24 uses SPI Mode 0 (CPOL=0, CPHA=0).
+ * 
+ * 2. GPIO Config:
+ *    - CSN (Chip Select): Any GPIO Output (High initial)
+ *    - CE (Chip Enable): Any GPIO Output (Low initial)
+ *    - IRQ (Optional): GPIO Input (Falling Edge)
+ * 
+ * 3. Usage:
+ *    NRF24_Init(&h, &hspi1, GPIOB, CSN_Pin, GPIOB, CE_Pin);
+ * =================================================================================
  */
 
 #ifndef NRF24L01_H

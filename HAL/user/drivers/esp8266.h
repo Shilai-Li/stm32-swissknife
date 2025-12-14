@@ -1,9 +1,25 @@
 /**
  * @file esp8266.h
  * @brief ESP8266 Wi-Fi Module Driver
- * @author Standard Implementation
- * @date 2024
- * @note Requires `uart.h` driver for communication
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Connectivity -> USARTx):
+ *    - Mode: Asynchronous
+ *    - Baud Rate: 115200 (Default for ESP8266)
+ *    - NVIC: Enable "USARTx global interrupt" (Critical for RingBuffer)
+ * 
+ * 2. Wiring:
+ *    - STM32 TX -> ESP8266 RX
+ *    - STM32 RX -> ESP8266 TX
+ *    - ESP8266 CH_PD (EN) -> 3.3V
+ *    - ESP8266 VCC -> 3.3V (Must provide >300mA current!)
+ * 
+ * 3. Driver Logic:
+ *    This driver relies on 'uart.c' which provides RingBuffer.
+ *    Ensure UART_Init() is called for both ESP channel and Debug channel.
+ * =================================================================================
  */
 
 #ifndef ESP8266_H

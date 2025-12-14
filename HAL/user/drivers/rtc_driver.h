@@ -1,8 +1,22 @@
 /**
  * @file rtc_driver.h
  * @brief RTC Driver Wrapper for simplified Time/Date handling
- * @details Provides Unix Timestamp support and formatted strings
- *          Requires CubeMX RTC Config enabled.
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Timers -> RTC):
+ *    - Activate Clock Source: Checked
+ *    - Calendar Time/Date: Optional set default
+ * 
+ * 2. Clock Config (Clock Configuration Tab):
+ *    - Enable LSE (32.768kHz Crystal) -> RTC Clock Mux -> LSE (Recommended)
+ *    - OR LSI (Internal Low Speed) -> Less accurate
+ * 
+ * 3. Note for F1 Series:
+ *    STM32F1 RTC is a simple Counter. Date is software calculated or backup reg stored.
+ *    This driver treats the counter as a Unix Timestamp (seconds since 1970).
+ * =================================================================================
  */
 
 #ifndef RTC_DRIVER_H
