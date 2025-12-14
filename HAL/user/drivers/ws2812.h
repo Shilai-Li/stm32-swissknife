@@ -3,6 +3,27 @@
  * @brief WS2812B / SK6812 LED Driver (PWM + DMA)
  * @author Standard Implementation
  * @date 2024
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Timer Config (e.g., TIM1, TIM2...):
+ *    - Channel X: PWM Generation CHx
+ *    - Prescaler (PSC): 0 (assuming 72MHz or similar fast clock)
+ *    - Counter Period (ARR): 90-1 (for 72MHz -> 800kHz typical WS2812 freq)
+ *      * Calculation: TimerFreq / 800000 - 1. E.g., 72MHz/800kHz = 90. ARR=89.
+ * 
+ * 2. DMA Settings (Under Timer -> DMA Settings):
+ *    - Add Request for TIMx_CHx / TIMx_UP
+ *    - Direction: Memory To Peripheral
+ *    - Priority: High/Very High
+ *    - Mode: Normal (Direct Mode, disable Circular!) <--- CRITICAL
+ *    - Data Width: Half Word (16 bit) for both
+ * 
+ * 3. User Code (stm32xxxx_it.c / main.c):
+ *    - Implement 'HAL_TIM_PWM_PulseFinishedCallback'
+ *    - Call 'WS2812_DmaCallback(&my_ws2812_handle)' inside it.
+ * =================================================================================
  */
 
 #ifndef __WS2812_H
