@@ -150,6 +150,9 @@ elseif(TEST_CASE STREQUAL "pot")
         drivers/potentiometer.c
         middlewares/algorithms/moving_average.c
     )
+elseif(TEST_CASE STREQUAL "buzzer")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/buzzer_tests.c)
+    list(APPEND USER_SOURCES drivers/buzzer.c)
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
