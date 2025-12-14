@@ -138,6 +138,12 @@ elseif(TEST_CASE STREQUAL "ds18b20")
 elseif(TEST_CASE STREQUAL "usb")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/usb_serial_tests.c)
     list(APPEND USER_SOURCES drivers/usb_serial.c)
+elseif(TEST_CASE STREQUAL "light")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/light_sensor_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/light_sensor.c
+        middlewares/algorithms/moving_average.c
+    )
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
