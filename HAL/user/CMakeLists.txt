@@ -160,6 +160,52 @@ elseif(TEST_CASE STREQUAL "ir")
         drivers/ir_nec_tim.c
         drivers/delay.c
     )
+elseif(TEST_CASE STREQUAL "u8g2")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/u8g2_tests.c)
+    
+    # === U8G2 Core Files (Minimal Set) ===
+    list(APPEND U8G2_SOURCES
+        components/u8g2/u8g2_bitmap.c
+        components/u8g2/u8g2_box.c
+        components/u8g2/u8g2_buffer.c
+        components/u8g2/u8g2_circle.c
+        components/u8g2/u8g2_cleardisplay.c
+        components/u8g2/u8g2_font.c
+        components/u8g2/u8g2_fonts.c
+        components/u8g2/u8g2_hvline.c
+        components/u8g2/u8g2_input_value.c
+        components/u8g2/u8g2_intersection.c
+        components/u8g2/u8g2_kerning.c
+        components/u8g2/u8g2_line.c
+        components/u8g2/u8g2_ll_hvline.c
+        components/u8g2/u8g2_message.c
+        components/u8g2/u8g2_polygon.c
+        components/u8g2/u8g2_selection_list.c
+        components/u8g2/u8g2_setup.c
+        components/u8g2/u8x8_8x8.c
+        components/u8g2/u8x8_byte.c
+        components/u8g2/u8x8_cad.c
+        components/u8g2/u8x8_debounce.c
+        components/u8g2/u8x8_display.c
+        components/u8g2/u8x8_gpio.c
+        components/u8g2/u8x8_input_value.c
+        components/u8g2/u8x8_message.c
+        components/u8g2/u8x8_selection_list.c
+        components/u8g2/u8x8_setup.c
+        components/u8g2/u8x8_string.c
+        components/u8g2/u8x8_u8toa.c
+        components/u8g2/u8x8_u16toa.c
+        
+        # === Porting Layer ===
+        components/u8g2_port.c
+        
+        # === Selected Display Drivers (Uncomment as needed) ===
+        components/u8g2/u8x8_d_ssd1306_128x64_noname.c
+        # components/u8g2/u8x8_d_pcd8544_84x48.c 
+    )
+    
+    list(APPEND USER_SOURCES ${U8G2_SOURCES})
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/u8g2 components)
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
