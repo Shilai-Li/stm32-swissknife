@@ -73,13 +73,17 @@ void Delay_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  */
 uint32_t micros(void)
 {
-    uint64_t base;
+    uint64_t base0, base1;
     uint16_t cnt;
-    __disable_irq();  // Prevent race
-    base = _micros_acc;
-    cnt = __HAL_TIM_GET_COUNTER(&DELAY_TIM_HANDLE);
-    __enable_irq();
-    return (uint32_t)(base + cnt);
+    
+    /* Lock-free read: Keep reading until _micros_acc is stable (not updated by ISR during read) */
+    do {
+        base0 = _micros_acc;
+        cnt = __HAL_TIM_GET_COUNTER(&DELAY_TIM_HANDLE);
+        base1 = _micros_acc;
+    } while (base0 != base1);
+    
+    return (uint32_t)(base0 + cnt);
 }
 
 /**

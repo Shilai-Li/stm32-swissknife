@@ -1,6 +1,6 @@
 /**
  * @file letter-shell_tests.c
- * @brief Test Letter Shell with UART
+ * @brief Test Letter Shell with UART DMA
  */
 
 #include "letter-shell_port.h"
@@ -8,22 +8,24 @@
 #include <stdio.h>
 
 void User_Entry(void) {
-    // 1. Hardware Init
-    // Usually done in main.c, but Ensure UART Driver is ready
+    // 1. 初始化 UART 驱动
     UART_Init();
     
-    // 2. Shell Init
+    // 2. 初始化 Letter Shell
     Shell_Port_Init();
     
-    UART_Debug_Printf("Shell Ready. Please connect UART terminal.\r\n");
-    UART_Debug_Printf("Debug Channel is usually USART2 (PA2/PA3) or as config in uart.h\r\n");
+    UART_Debug_Printf("\r\n");
+    UART_Debug_Printf("===========================================\r\n");
+    UART_Debug_Printf("  STM32 SwissKnife - Letter Shell Ready\r\n");
+    UART_Debug_Printf("===========================================\r\n");
+    UART_Debug_Printf("Type 'help' for available commands.\r\n\r\n");
     
-    // 3. Main Loop
+    // 3. 主循环
     while(1) {
-        // Poll for input
-        Shell_Task();
+        // 驱动 UART 状态机（必须调用）
+        UART_Poll();
         
-        // Blink or logic
-        HAL_Delay(10);
+        // 处理 Shell 输入
+        Shell_Task();
     }
 }
