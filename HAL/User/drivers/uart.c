@@ -150,8 +150,7 @@ static void UART_TxKick(UART_Channel ch)
 
     UART_TxRingBuf *tb = &uart_tbuf[ch];
 
-    // Simple lock checks without disabling interrupts to avoid 'cpsid i' errors.
-    // HAL_UART_Transmit_IT handles its own locking reasonably well for this simple case.
+    // 检查是否正在忙
     if (tb->busy) return;
     if (tb->head == tb->tail) return;
 
@@ -166,21 +165,16 @@ static void UART_TxKick(UART_Channel ch)
     tb->busy = 1;
     tb->inflight_len = len;
 
-    // Call HAL Transmit via DMA
-    // We use DMA to drastically reduce CPU load during high-throughput echo
-    HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(huart, &tb->buf[tb->tail], len);
+    // 改用中断模式发送，避免 DMA 状态机问题
+    // DMA 发送在某些配置下可能有问题
+    HAL_StatusTypeDef status = HAL_UART_Transmit_IT(huart, &tb->buf[tb->tail], len);
     if (status != HAL_OK) {
-        // Clear busy flag to allow retry
+        // 清除 busy 标志以便重试
         tb->busy = 0;
         tb->inflight_len = 0;
         
-        // Increment error counter for debugging
+        // 计数错误
         uart_rbuf[ch].error_cnt++;
-        
-        // If DMA is busy, abort current transfer and retry
-        if (status == HAL_BUSY) {
-            HAL_UART_AbortTransmit(huart);
-        }
     }
 }
 
