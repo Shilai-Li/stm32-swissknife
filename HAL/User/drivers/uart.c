@@ -313,18 +313,6 @@ void UART_Poll(void)
     for (int i = 0; i < UART_CHANNEL_MAX; i++) {
         UART_HandleTypeDef *huart = UART_GetHandle((UART_Channel)i);
         if (huart != NULL) {
-            // 检查是否有错误需要处理
-            if (uart_rbuf[i].error_flag) {
-                // 清除错误标志
-                uart_rbuf[i].error_flag = 0;
-                
-                // 重启DMA接收
-                HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
-                
-                // 重置位置跟踪
-                RxDMAPos[i] = 0;
-            }
-            
             // 检查TX是否卡住：HAL报告不忙但我们的busy标志仍设置
             // 这可能发生在DMA错误或回调未触发时
             if (uart_tbuf[i].busy && huart->gState == HAL_UART_STATE_READY) {
@@ -332,13 +320,20 @@ void UART_Poll(void)
                 uart_tbuf[i].busy = 0;
                 uart_tbuf[i].inflight_len = 0;
             }
+            
+            // 额外安全检查：确保 RX DMA 仍在运行
+            // 如果 RxState 不是 BUSY_RX，说明 DMA 已停止（可能由于某些未处理的错误）
+            if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
+                // 在主循环中尝试恢复 DMA（作为备用恢复机制）
+                RxDMAPos[i] = 0;
+                HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
+            }
         }
         
-        // 处理RX数据
-        if (rx_pending[i]) {
-            rx_pending[i] = 0;
-            UART_ProcessDMA((UART_Channel)i);
-        }
+        // 处理RX数据 - 无论是否有pending标志，都定期同步
+        // 这确保即使中断没有及时设置标志，数据也能被处理
+        UART_ProcessDMA((UART_Channel)i);
+        rx_pending[i] = 0; // 清除标志
         
         // 重试TX
         if (uart_tbuf[i].head != uart_tbuf[i].tail) {
@@ -453,14 +448,22 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         rb->dma_error_cnt++;
     }
 
-    // Set error flag for main loop handling
-    rb->error_flag = 1;
-
-    // Clear error flags
+    // Clear all UART error flags
     __HAL_UART_CLEAR_OREFLAG(huart);
     __HAL_UART_CLEAR_NEFLAG(huart);
     __HAL_UART_CLEAR_FEFLAG(huart);
     __HAL_UART_CLEAR_PEFLAG(huart);
+    // 关键修复：HAL 库在错误发生时已经停止了 DMA 接收
+    // 必须在这里立即重启，而不是等待主循环！
+    
+    // 检查 RX DMA 是否已停止（RxState 不再是 BUSY_RX）
+    if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
+        // 重置 DMA 位置追踪（因为 DMA 将从头开始）
+        RxDMAPos[ch] = 0;
+        
+        // 立即重启 DMA 接收
+        HAL_UART_Receive_DMA(huart, RxDMABuf[ch], UART_RX_BUF_SIZE);
+    }
 }
 
 void UART_Debug_Printf(const char *fmt, ...)
