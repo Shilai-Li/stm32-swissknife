@@ -49,11 +49,11 @@ typedef enum {
  * UART Configuration
  * ========================================================================= */
 #ifndef UART_RX_BUF_SIZE
-#define UART_RX_BUF_SIZE  256
+#define UART_RX_BUF_SIZE  2048
 #endif
 
 #ifndef UART_TX_BUF_SIZE
-#define UART_TX_BUF_SIZE  512
+#define UART_TX_BUF_SIZE  2048
 #endif
 
 #ifndef UART_DEBUG_CHANNEL
@@ -65,6 +65,15 @@ typedef struct {
     volatile uint16_t head;
     volatile uint16_t tail;
     uint8_t rx_byte;
+    volatile uint32_t overrun_cnt;  // RX Software Buffer Overflow
+    volatile uint32_t tx_dropped;   // TX Buffer Overflow (Send failed)
+    volatile uint32_t error_cnt;    // Total Hardware Errors
+    volatile uint32_t pe_error_cnt; // Parity Errors
+    volatile uint32_t ne_error_cnt; // Noise Errors
+    volatile uint32_t fe_error_cnt; // Frame Errors
+    volatile uint32_t ore_error_cnt; // Overrun Errors
+    volatile uint32_t dma_error_cnt; // DMA Transfer Errors
+    volatile uint8_t error_flag;    // Error flag for recovery in main loop
 } UART_RingBuf;
 
 /* ============================================================================
@@ -76,6 +85,15 @@ void UART_SendString(UART_Channel channel, const char *str);
 uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);
 bool UART_Receive(UART_Channel channel, uint8_t *out, uint32_t timeout_ms);
+uint32_t UART_GetRxOverrunCount(UART_Channel channel);
+void UART_Poll(void);
+uint32_t UART_GetTxDropCount(UART_Channel channel);
+uint32_t UART_GetErrorCount(UART_Channel channel);
+uint32_t UART_GetPEErrorCount(UART_Channel channel);
+uint32_t UART_GetNEErrorCount(UART_Channel channel);
+uint32_t UART_GetFEErrorCount(UART_Channel channel);
+uint32_t UART_GetOREErrorCount(UART_Channel channel);
+uint32_t UART_GetDMAErrorCount(UART_Channel channel);
 void UART_Debug_Printf(const char *fmt, ...);
 
 #ifdef __cplusplus
