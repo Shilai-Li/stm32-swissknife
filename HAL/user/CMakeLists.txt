@@ -1,5 +1,5 @@
 # Test Case Selection
-set(TEST_CASE "UART" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
+set(TEST_CASE "" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
