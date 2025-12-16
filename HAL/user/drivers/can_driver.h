@@ -1,8 +1,24 @@
 /**
  * @file can_driver.h
  * @brief CAN Driver Wrapper for STM32 HAL
- * @author Standard Implementation
- * @date 2024
+ * 
+ * =================================================================================
+ *                       >>> INTEGRATION GUIDE <<<
+ * =================================================================================
+ * 1. CubeMX Config (Connectivity -> CAN):
+ *    - Mode: Master (or Normal)
+ *    - Bit Timing Parameters (Important!):
+ *      * Prescaler: Depends on APB1 Clock. 
+ *        Example (36MHz APB1 -> 500kbps): Prescaler=4, BS1=15, BS2=2. (Sample Point 87.5%)
+ *      * Calculate: Baud = APB1 / (Prescaler * (1 + BS1 + BS2))
+ *    - NVIC Settings:
+ *      * Enable "CAN1 RX0 interrupt" (Essential for Receive)
+ * 
+ * 2. Code Integration:
+ *    - Ensure 'CAN_Init(&hcan1)' is called.
+ *    - The driver automatically sets up a default filter to Accept All IDs.
+ *    - To receive, you must implement HAL_CAN_RxFifo0MsgPendingCallback (or let driver do it if handled).
+ * =================================================================================
  */
 
 #ifndef __CAN_DRIVER_H

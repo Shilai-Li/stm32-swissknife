@@ -1,5 +1,5 @@
 # Test Case Selection
-set(TEST_CASE "" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
+set(TEST_CASE "letter-shell" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -7,12 +7,6 @@ message("Selected Test Case: ${TEST_CASE}")
 set(USER_SOURCES
         drivers/delay.c
         drivers/uart.c
-        drivers/soft_i2c.c
-        drivers/soft_spi.c
-        drivers/rs485.c
-        drivers/can_driver.c
-        drivers/adc_filter.c
-        drivers/hc_sr04.c
 )
 
 # Applications
@@ -29,12 +23,78 @@ if (TEST_CASE STREQUAL "stm32f429HAL步进电机驱动")
     )
 
 # Components
+elseif(TEST_CASE STREQUAL "letter-shell")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/letter-shell_tests.c)
+    list(APPEND USER_SOURCES
+            components/letter-shell/shell.c
+            components/letter-shell/shell_ext.c
+            components/letter-shell_port.c
+    )
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/letter-shell components)
+
+elseif(TEST_CASE STREQUAL "lfs")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/littlefs_tests.c)
+    list(APPEND USER_SOURCES
+            components/littlefs/lfs.c
+            components/littlefs/lfs_util.c
+            components/littlefs_port.c
+            drivers/w25qxx.c
+    )
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/littlefs components)
+
+elseif(TEST_CASE STREQUAL "u8g2")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/u8g2_tests.c)
+
+    # === U8G2 Core Files (Minimal Set) ===
+    list(APPEND U8G2_SOURCES
+            components/u8g2/u8g2_bitmap.c
+            components/u8g2/u8g2_box.c
+            components/u8g2/u8g2_buffer.c
+            components/u8g2/u8g2_circle.c
+            components/u8g2/u8g2_cleardisplay.c
+            components/u8g2/u8g2_font.c
+            components/u8g2/u8g2_fonts.c
+            components/u8g2/u8g2_hvline.c
+            components/u8g2/u8g2_input_value.c
+            components/u8g2/u8g2_intersection.c
+            components/u8g2/u8g2_kerning.c
+            components/u8g2/u8g2_line.c
+            components/u8g2/u8g2_ll_hvline.c
+            components/u8g2/u8g2_message.c
+            components/u8g2/u8g2_polygon.c
+            components/u8g2/u8g2_selection_list.c
+            components/u8g2/u8g2_setup.c
+            components/u8g2/u8x8_8x8.c
+            components/u8g2/u8x8_byte.c
+            components/u8g2/u8x8_cad.c
+            components/u8g2/u8x8_debounce.c
+            components/u8g2/u8x8_display.c
+            components/u8g2/u8x8_gpio.c
+            components/u8g2/u8x8_input_value.c
+            components/u8g2/u8x8_message.c
+            components/u8g2/u8x8_selection_list.c
+            components/u8g2/u8x8_setup.c
+            components/u8g2/u8x8_string.c
+            components/u8g2/u8x8_u8toa.c
+            components/u8g2/u8x8_u16toa.c
+
+            # === Porting Layer ===
+            components/u8g2_port.c
+
+            # === Selected Display Drivers (Uncomment as needed) ===
+            components/u8g2/u8x8_d_ssd1306_128x64_noname.c
+            # components/u8g2/u8x8_d_pcd8544_84x48.c
+    )
+
+    list(APPEND USER_SOURCES ${U8G2_SOURCES})
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/u8g2 components)
+
 elseif (TEST_CASE STREQUAL "servo")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
     list(APPEND USER_SOURCES
             components/servo.c
             components/servo_port.c
-            drivers/motor.c
+            drivers/dc_motor.c
             middlewares/algorithms/pid.c
     )
 
@@ -60,9 +120,6 @@ elseif(TEST_CASE STREQUAL "dht11")
     list(APPEND USER_SOURCES drivers/dht11.c)
 elseif(TEST_CASE STREQUAL "encoder")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/encoder_tests.c)
-    list(APPEND USER_SOURCES 
-            drivers/encoder_knob.c 
-            drivers/encoder_motor.c)
 elseif(TEST_CASE STREQUAL "hc_sr04")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/hc_sr04_tests.c)
 elseif(TEST_CASE STREQUAL "ili9341")
@@ -95,7 +152,9 @@ elseif(TEST_CASE STREQUAL "ssd1306_custom")
 elseif(TEST_CASE STREQUAL "sd_card_spi")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/sd_card_spi_tests.c)
     list(APPEND USER_SOURCES drivers/sd_card_spi.c)
-elseif(TEST_CASE STREQUAL "SSD1306")
+elseif(TEST_CASE STREQUAL "servo_motor")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/servo_motor_tests.c)
+elseif(TEST_CASE STREQUAL "soft_i2c")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/afiskon-stm32-ssd1306/ssd1306_tests.c)
     list(APPEND USER_SOURCES
             drivers/afiskon-stm32-ssd1306/ssd1306.c
@@ -107,12 +166,66 @@ elseif(TEST_CASE STREQUAL "st7735")
 elseif(TEST_CASE STREQUAL "st7789")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/st7789_tests.c)
     list(APPEND USER_SOURCES drivers/st7789.c)
+elseif(TEST_CASE STREQUAL "stepper")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/stepper_tests.c)
+    list(APPEND USER_SOURCES drivers/stepper_motor.c)
 elseif(TEST_CASE STREQUAL "UART")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/uart_driver_test.c)
     # UART driver is already in common sources
 elseif(TEST_CASE STREQUAL "w25qxx")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/w25qxx_test.c)
     list(APPEND USER_SOURCES drivers/w25qxx.c)
+elseif(TEST_CASE STREQUAL "ws2812")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ws2812_tests.c)
+elseif(TEST_CASE STREQUAL "xpt2046")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/xpt2046_tests.c)
+elseif(TEST_CASE STREQUAL "esp8266")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/esp8266_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/esp8266.c
+        drivers/uart.c
+        drivers/delay.c
+    )
+elseif(TEST_CASE STREQUAL "flash")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/internal_flash_tests.c)
+    list(APPEND USER_SOURCES drivers/internal_flash.c)
+elseif(TEST_CASE STREQUAL "watchdog")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/watchdog_tests.c)
+    list(APPEND USER_SOURCES drivers/watchdog.c)
+elseif(TEST_CASE STREQUAL "rtc")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/rtc_driver_tests.c)
+    list(APPEND USER_SOURCES drivers/rtc_driver.c)
+elseif(TEST_CASE STREQUAL "nrf24")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/nrf24l01_tests.c)
+    list(APPEND USER_SOURCES drivers/nrf24l01.c)
+elseif(TEST_CASE STREQUAL "ds18b20")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ds18b20_tests.c)
+    list(APPEND USER_SOURCES drivers/ds18b20.c)
+elseif(TEST_CASE STREQUAL "usb")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/usb_serial_tests.c)
+    list(APPEND USER_SOURCES drivers/usb_serial.c)
+elseif(TEST_CASE STREQUAL "light")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/light_sensor_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/light_sensor.c
+        middlewares/algorithms/moving_average.c
+    )
+elseif(TEST_CASE STREQUAL "pot")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/potentiometer_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/potentiometer.c
+        middlewares/algorithms/moving_average.c
+    )
+elseif(TEST_CASE STREQUAL "buzzer")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/buzzer_tests.c)
+    list(APPEND USER_SOURCES drivers/buzzer.c)
+elseif(TEST_CASE STREQUAL "ir")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/ir_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/ir_nec_exti.c
+        drivers/ir_nec_tim.c
+        drivers/delay.c
+    )
 else()
     # Default to CRSF if nothing matches
     message(STATUS "No specific TEST_CASE matched, defaulting to CRSF")
@@ -129,6 +242,7 @@ target_include_directories(User PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/components
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers
         ${CMAKE_CURRENT_SOURCE_DIR}/middlewares
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(User PUBLIC stm32cubemx)
