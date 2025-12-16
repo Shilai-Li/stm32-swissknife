@@ -205,6 +205,51 @@ uint16_t UART_Available(UART_Channel ch)
 /* ============================================================================
  * Initialization
  * ========================================================================= */
+
+// 底层函数：手动启动 DMA 接收（绕过 HAL 状态机）
+static void UART_StartDMA_RX_LowLevel(UART_Channel ch)
+{
+    UART_HandleTypeDef *huart = UART_GetHandle(ch);
+    if (!huart || !huart->hdmarx) return;
+    
+    DMA_HandleTypeDef *hdma = huart->hdmarx;
+    
+    // 1. 禁用 DMA 通道（带超时保护）
+    hdma->Instance->CCR &= ~DMA_CCR_EN;
+    uint32_t timeout = 1000;
+    while ((hdma->Instance->CCR & DMA_CCR_EN) && timeout--) {
+        // 等待 DMA 停止
+    }
+    
+    // 2. 清除 UART DMAR 位
+    CLEAR_BIT(huart->Instance->CR3, USART_CR3_DMAR);
+    
+    // 3. 清除 DMA 中断标志
+    __HAL_DMA_CLEAR_FLAG(hdma, __HAL_DMA_GET_TC_FLAG_INDEX(hdma));
+    __HAL_DMA_CLEAR_FLAG(hdma, __HAL_DMA_GET_HT_FLAG_INDEX(hdma));
+    __HAL_DMA_CLEAR_FLAG(hdma, __HAL_DMA_GET_TE_FLAG_INDEX(hdma));
+    
+    // 4. 配置 DMA
+    hdma->Instance->CNDTR = UART_RX_BUF_SIZE;
+    hdma->Instance->CPAR = (uint32_t)&huart->Instance->DR;
+    hdma->Instance->CMAR = (uint32_t)RxDMABuf[ch];
+    
+    // 5. 确保 Circular 模式
+    hdma->Instance->CCR |= DMA_CCR_CIRC;
+    
+    // 6. 清除 UART 错误标志
+    __HAL_UART_CLEAR_OREFLAG(huart);
+    
+    // 7. 启用 DMA 通道
+    hdma->Instance->CCR |= DMA_CCR_EN;
+    
+    // 8. 启用 UART DMA 接收请求
+    SET_BIT(huart->Instance->CR3, USART_CR3_DMAR);
+    
+    // 重置位置追踪
+    RxDMAPos[ch] = 0;
+}
+
 void UART_Init(void)
 {
     for (int i = 0; i < UART_CHANNEL_MAX; i++) {
@@ -232,15 +277,16 @@ void UART_Init(void)
             RxDMAPos[i] = 0;
             rx_pending[i] = 0;
 
-            // Defensive: Disable IDLE interrupt to prevent unhandled ISR storms if accidentally enabled
+            // Defensive: Disable IDLE interrupt
             __HAL_UART_DISABLE_IT(huart, UART_IT_IDLE);
             __HAL_UART_CLEAR_IDLEFLAG(huart);
             
-            // Start DMA Reception in Circular Mode
-            HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
+            // 使用底层方式启动 DMA RX（绕过 HAL 状态机）
+            UART_StartDMA_RX_LowLevel((UART_Channel)i);
         }
     }
 }
+
 
 /* ============================================================================
  * Send/Receive API
@@ -308,26 +354,29 @@ void UART_Poll(void)
         UART_HandleTypeDef *huart = UART_GetHandle((UART_Channel)i);
         if (huart != NULL) {
             // 检查TX是否卡住：HAL报告不忙但我们的busy标志仍设置
-            // 这可能发生在DMA错误或回调未触发时
             if (uart_tbuf[i].busy && huart->gState == HAL_UART_STATE_READY) {
                 // TX可能卡住了，强制恢复
                 uart_tbuf[i].busy = 0;
                 uart_tbuf[i].inflight_len = 0;
             }
             
-            // 额外安全检查：确保 RX DMA 仍在运行
-            // 如果 RxState 不是 BUSY_RX，说明 DMA 已停止（可能由于某些未处理的错误）
-            if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
-                // 在主循环中尝试恢复 DMA（作为备用恢复机制）
-                RxDMAPos[i] = 0;
-                HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
+            // 检查 DMA RX 是否停止（通过检查 DMA 使能位）
+            // 如果 DMA 被禁用或 UART DMAR 位被清除，重启 DMA
+            if (huart->hdmarx) {
+                uint32_t dma_enabled = huart->hdmarx->Instance->CCR & DMA_CCR_EN;
+                uint32_t uart_dmar = huart->Instance->CR3 & USART_CR3_DMAR;
+                
+                if (!dma_enabled || !uart_dmar) {
+                    // DMA 已停止，重启它
+                    UART_StartDMA_RX_LowLevel((UART_Channel)i);
+                    uart_rbuf[i].error_cnt++; // 计数这次恢复
+                }
             }
         }
         
-        // 处理RX数据 - 无论是否有pending标志，都定期同步
-        // 这确保即使中断没有及时设置标志，数据也能被处理
+        // 处理RX数据
         UART_ProcessDMA((UART_Channel)i);
-        rx_pending[i] = 0; // 清除标志
+        rx_pending[i] = 0;
         
         // 重试TX
         if (uart_tbuf[i].head != uart_tbuf[i].tail) {
@@ -447,17 +496,9 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     __HAL_UART_CLEAR_NEFLAG(huart);
     __HAL_UART_CLEAR_FEFLAG(huart);
     __HAL_UART_CLEAR_PEFLAG(huart);
-    // 关键修复：HAL 库在错误发生时已经停止了 DMA 接收
-    // 必须在这里立即重启，而不是等待主循环！
     
-    // 检查 RX DMA 是否已停止（RxState 不再是 BUSY_RX）
-    if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
-        // 重置 DMA 位置追踪（因为 DMA 将从头开始）
-        RxDMAPos[ch] = 0;
-        
-        // 立即重启 DMA 接收
-        HAL_UART_Receive_DMA(huart, RxDMABuf[ch], UART_RX_BUF_SIZE);
-    }
+    // 立即重启 DMA 接收（使用底层函数绕过 HAL 状态机）
+    UART_StartDMA_RX_LowLevel((UART_Channel)ch);
 }
 
 void UART_Debug_Printf(const char *fmt, ...)
