@@ -236,6 +236,17 @@ elseif (TEST_CASE STREQUAL "servo")
             middlewares/algorithms/pid.c
     )
 
+elseif(TEST_CASE STREQUAL "flexible_button")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/flexible_button_tests.c)
+    list(APPEND USER_SOURCES
+            components/flexible_button/csrc/flexible_button.c
+            components/flexible_button/flexible_button_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/flexible_button
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/flexible_button/csrc
+    )
+
 # Drivers
 elseif(TEST_CASE STREQUAL "at24cxx")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/at24cxx_tests.c)

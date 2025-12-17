@@ -260,6 +260,16 @@ void process_protocol_data(void) {
 
 **下载源代码后，告诉我继续下一步！** 🚀
 
+### FlexibleButton 集成
+- **代码结构**:
+  - `components/flexible_button/` - 组件目录
+  - `components/flexible_button/csrc/` - 官方源码 (待下载)
+  - `components/flexible_button/flexible_button_port.c` - 移植层
+  - `components/tests/flexible_button_tests.c` - 测试代码
+- **更新方法**:
+  - 运行 `components/flexible_button/update_flexible_button.ps1`
+
+
 ---
 
 创建时间: 2025-12-18  
