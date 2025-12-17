@@ -10,7 +10,7 @@
  */
 
 #include "main.h"
-#include "drivers/uart.h"
+#include "uart.h"
 
 /* 定义模块标签 - 必须在 include elog.h 之前定义 */
 #define LOG_TAG "main"
@@ -53,7 +53,10 @@ void User_Entry(void) {
     int sensor_value = 42;
     float temperature = 25.5f;
     log_i("Sensor value: %d", sensor_value);
-    log_i("Temperature: %.1f C", temperature);
+    // 浮点数打印：手动拆分整数和小数部分（避免使用 %f）
+    int temp_int = (int)temperature;
+    int temp_dec = (int)((temperature - temp_int) * 10);  // 1位小数
+    log_i("Temperature: %d.%d C", temp_int, temp_dec);
     
     // 8. 主循环 - 周期性日志输出
     uint32_t counter = 0;
