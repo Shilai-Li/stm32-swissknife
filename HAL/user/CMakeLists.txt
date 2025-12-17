@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "coremqtt" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "lwrb" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -172,6 +172,17 @@ elseif(TEST_CASE STREQUAL "coremqtt")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/coremqtt/csrc
     )
 
+elseif(TEST_CASE STREQUAL "multitimer")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/multitimer_tests.c)
+    list(APPEND USER_SOURCES
+            components/multitimer/csrc/MultiTimer.c
+            components/multitimer/multitimer_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/multitimer
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/multitimer/csrc
+    )
+
 elseif(TEST_CASE STREQUAL "nanomodbus")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/nanomodbus_tests.c)
     list(APPEND USER_SOURCES
@@ -182,6 +193,40 @@ elseif(TEST_CASE STREQUAL "nanomodbus")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/nanomodbus
             ${CMAKE_CURRENT_SOURCE_DIR}/components/nanomodbus/csrc
     )
+
+elseif(TEST_CASE STREQUAL "tinyframe")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/tinyframe_tests.c)
+    list(APPEND USER_SOURCES
+            components/tinyframe/csrc/TinyFrame.c
+            components/tinyframe/tinyframe_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/tinyframe
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/tinyframe/csrc
+    )
+
+elseif(TEST_CASE STREQUAL "lwrb")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/lwrb_tests.c)
+    list(APPEND USER_SOURCES
+            components/lwrb/csrc/lwrb.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/lwrb
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/lwrb/csrc
+    )
+
+elseif(TEST_CASE STREQUAL "sfud")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/sfud_tests.c)
+    list(APPEND USER_SOURCES
+            components/sfud/csrc/sfud.c
+            components/sfud/csrc/sfud_sfdp.c
+            components/sfud/sfud_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/sfud
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/sfud/csrc
+    )
+
 elseif (TEST_CASE STREQUAL "servo")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
     list(APPEND USER_SOURCES
