@@ -87,7 +87,7 @@ extern "C" {
 #endif
 
 #include "main.h"
-#include "csrc/lvgl.h"
+#include "lvgl.h"
 
 /* ============================================================================
  *                          DISPLAY CONFIGURATION
