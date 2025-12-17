@@ -8,8 +8,8 @@
  * - GPIO Input: Touch_IRQ (e.g. PB1) -> Pull Up recommended logic, usually internal pullup or external. XPT2046 IRQ is Open Drain low.
  */
 
-#include "drivers/xpt2046.h"
-#include "drivers/uart.h"
+#include "xpt2046.h"
+#include "uart.h"
 
 // --- Config ---
 extern SPI_HandleTypeDef hspi2; // Use SPI2 for Touch (often shared with LCD or dedicated)

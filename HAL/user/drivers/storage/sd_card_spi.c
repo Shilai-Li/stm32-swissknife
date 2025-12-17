@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/sd_card_spi.h"
+#include "sd_card_spi.h"
 #include <string.h>
 
 // --- Definitions ---

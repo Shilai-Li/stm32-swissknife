@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/servo_motor.h"
+#include "servo_motor.h"
 
 // Helper to convert us to timer ticks
 // We need to know the Timer Clock Frequency to convert US to CCR value accurately.

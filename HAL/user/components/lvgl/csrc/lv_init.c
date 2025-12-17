@@ -78,13 +78,13 @@
     #include "draw/espressif/ppa/lv_draw_ppa.h"
 #endif
 #if LV_USE_WINDOWS
-    #include "drivers/windows/lv_windows_context.h"
+    #include "windows/lv_windows_context.h"
 #endif
 #if LV_USE_UEFI
-    #include "drivers/uefi/lv_uefi_context.h"
+    #include "uefi/lv_uefi_context.h"
 #endif
 #if LV_USE_EVDEV
-    #include "drivers/evdev/lv_evdev_private.h"
+    #include "evdev/lv_evdev_private.h"
 #endif
 #if LV_USE_DRAW_EVE
     #include "draw/eve/lv_draw_eve.h"

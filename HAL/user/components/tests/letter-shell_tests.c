@@ -4,7 +4,7 @@
  */
 
 #include "../letter-shell/letter-shell_port.h"
-#include "drivers/uart.h"
+#include "uart.h"
 #include <stdio.h>
 
 void User_Entry(void) {

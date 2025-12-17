@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/ws2812.h"
+#include "ws2812.h"
 #include <string.h>
 
 void WS2812_Init(WS2812_HandleTypeDef *hws, TIM_HandleTypeDef *htim, uint32_t channel, uint16_t num_leds) {

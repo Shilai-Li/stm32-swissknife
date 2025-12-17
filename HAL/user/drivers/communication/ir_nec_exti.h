@@ -13,7 +13,7 @@
  * 2. In your code (main.c or stm32xxxx_it.c):
  *    
  *    // Include Header
- *    #include "drivers/ir_nec_exti.h"
+ *    #include "ir_nec_exti.h"
  *    extern IR_NEC_EXTI_Handle_t my_ir; // Or however you declare it
  * 
  *    // Implement/Modify Callback

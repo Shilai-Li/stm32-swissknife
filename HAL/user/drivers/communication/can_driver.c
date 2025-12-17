@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/can_driver.h"
+#include "can_driver.h"
 #include <string.h>
 
 void CAN_Driver_Init(CAN_Driver_HandleTypeDef *hdriver, CAN_HandleTypeDef *hcan) {

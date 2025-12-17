@@ -3,8 +3,8 @@
  * @brief ILI9488 TFT LCD Driver Test Code
  */
 
-#include "drivers/ili9488.h"
-#include "drivers/uart.h"
+#include "ili9488.h"
+#include "uart.h"
 
 // --- Configuration ---
 extern SPI_HandleTypeDef hspi1;

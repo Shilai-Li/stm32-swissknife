@@ -18,7 +18,7 @@
  * 2. In your code (main.c or stm32xxxx_it.c):
  *    
  *    // Include Header
- *    #include "drivers/ir_nec_tim.h"
+ *    #include "ir_nec_tim.h"
  *    extern IR_NEC_TIM_Handle_t my_ir_tim;
  * 
  *    // Implement/Modify Callback

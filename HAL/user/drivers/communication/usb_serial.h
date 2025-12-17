@@ -15,7 +15,7 @@
  *    
  *    a) Add Include:
  *       / * USER CODE BEGIN Includes * /
- *       #include "drivers/usb_serial.h"
+ *       #include "usb_serial.h"
  *       / * USER CODE END Includes * /
  * 
  *    b) Modify 'CDC_Receive_FS' function:

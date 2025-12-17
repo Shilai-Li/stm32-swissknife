@@ -5,8 +5,8 @@
  * @date 2024
  */
 
-#include "drivers/ili9488.h"
-#include "drivers/delay.h"
+#include "ili9488.h"
+#include "delay.h"
 
 // --- Command Definitions ---
 #define ILI9488_SWRESET     0x01

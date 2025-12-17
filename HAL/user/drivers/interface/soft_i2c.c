@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/soft_i2c.h"
+#include "soft_i2c.h"
 
 // Constants
 #define I2C_READ    1

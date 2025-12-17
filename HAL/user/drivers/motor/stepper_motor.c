@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/stepper_motor.h"
+#include "stepper_motor.h"
 #include <math.h>
 #include <stdlib.h>
 

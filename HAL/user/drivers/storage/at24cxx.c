@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/at24cxx.h"
+#include "at24cxx.h"
 #include <string.h>
 
 /**

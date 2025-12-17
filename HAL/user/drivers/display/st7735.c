@@ -5,8 +5,8 @@
  * @date 2024
  */
 
-#include "drivers/st7735.h"
-#include "drivers/delay.h"
+#include "st7735.h"
+#include "delay.h"
 
 // --- ST7735 Command Definitions ---
 #define ST7735_NOP     0x00

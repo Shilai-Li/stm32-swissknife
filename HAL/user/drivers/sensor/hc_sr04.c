@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/hc_sr04.h"
+#include "hc_sr04.h"
 
 // Helper for blocking microsecond delay using the same timer
 static void HCSR04_DelayUs(TIM_HandleTypeDef *htim, uint16_t us) {

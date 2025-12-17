@@ -9,9 +9,9 @@
  *    - Used for Knob.
  */
 
-#include "drivers/encoder_knob.h"
-#include "drivers/encoder_motor.h"
-#include "drivers/uart.h"
+#include "encoder_knob.h"
+#include "encoder_motor.h"
+#include "uart.h"
 
 // --- Configuration ---
 extern TIM_HandleTypeDef htim1; // Trying TIM1 for Knob for validation 

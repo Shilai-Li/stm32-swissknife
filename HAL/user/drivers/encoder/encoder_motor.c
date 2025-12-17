@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/encoder_motor.h"
+#include "encoder_motor.h"
 
 void Encoder_Motor_Init(Encoder_Motor_HandleTypeDef *hmotor, TIM_HandleTypeDef *htim, uint16_t cpr) {
     hmotor->htim = htim;

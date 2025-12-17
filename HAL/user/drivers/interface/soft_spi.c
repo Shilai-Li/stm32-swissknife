@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/soft_spi.h"
+#include "soft_spi.h"
 
 // --- Private Functions ---
 

@@ -12,7 +12,7 @@ extern "C" {
 
 #include "main.h"
 #include "lfs.h"
-#include "drivers/w25qxx.h"
+#include "w25qxx.h"
 
 // --- Configuration ---
 // Define the W25Qxx handle that LittleFS should use.

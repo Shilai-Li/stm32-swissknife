@@ -3,8 +3,8 @@
  * @brief CAN Driver Test Code
  */
 
-#include "drivers/can_driver.h"
-#include "drivers/uart.h"
+#include "can_driver.h"
+#include "uart.h"
 
 // --- Configuration ---
 // Requires CAN1 initialized in main.c

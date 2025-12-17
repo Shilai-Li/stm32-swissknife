@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/encoder_knob.h"
+#include "encoder_knob.h"
 #include <stdlib.h> // for abs
 
 void Encoder_Knob_Init(Encoder_Knob_HandleTypeDef *hknob, TIM_HandleTypeDef *htim) {

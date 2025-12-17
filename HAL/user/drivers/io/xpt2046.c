@@ -5,7 +5,7 @@
  * @date 2024
  */
 
-#include "drivers/xpt2046.h"
+#include "xpt2046.h"
 
 // Command Definitions
 // Bit 7: Start Bit (Always 1)

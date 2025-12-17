@@ -29,7 +29,7 @@
 
 #include "elog_port.h"
 #include "main.h"
-#include "drivers/uart.h"
+#include "uart.h"
 
 /* 时间缓冲区 */
 static char time_buf[16];

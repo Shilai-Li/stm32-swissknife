@@ -15,8 +15,8 @@
  *    - Data Width: Half Word (16 bit) -> Half Word.
  */
 
-#include "drivers/ws2812.h"
-#include "drivers/uart.h"
+#include "ws2812.h"
+#include "uart.h"
 
 // --- Configuration ---
 extern TIM_HandleTypeDef htim4; // Assume TIM4 CH1

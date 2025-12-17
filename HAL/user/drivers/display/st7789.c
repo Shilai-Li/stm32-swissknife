@@ -5,8 +5,8 @@
  * @date 2024
  */
 
-#include "drivers/st7789.h"
-#include "drivers/delay.h" // Assuming user has delay_driver.h or similar
+#include "st7789.h"
+#include "delay.h" // Assuming user has delay_driver.h or similar
 
 // --- Command Definitions ---
 #define ST7789_SWRESET    0x01
