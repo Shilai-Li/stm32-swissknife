@@ -1,5 +1,5 @@
-# Test Case Selection
-set(TEST_CASE "easy-logger" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
+﻿# Test Case Selection
+set(TEST_CASE "nanomodbus" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -159,6 +159,17 @@ elseif(TEST_CASE STREQUAL "cjson")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/cjson/csrc
     )
 
+
+elseif(TEST_CASE STREQUAL "nanomodbus")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/nanomodbus_tests.c)
+    list(APPEND USER_SOURCES
+            components/nanomodbus/csrc/nanomodbus.c
+            components/nanomodbus/nanomodbus_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/nanomodbus
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/nanomodbus/csrc
+    )
 elseif (TEST_CASE STREQUAL "servo")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
     list(APPEND USER_SOURCES
