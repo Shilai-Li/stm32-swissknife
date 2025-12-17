@@ -115,21 +115,21 @@ elseif(TEST_CASE STREQUAL "lvgl")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/lvgl_tests.c)
 
     # === LVGL Core Files (Auto-collected) ===
-    # Directory structure matches official LVGL for easy updates
+    # csrc/ 对应官方 LVGL 的 src/ 目录
     file(GLOB_RECURSE LVGL_CORE_SOURCES
-            components/lvgl/src/core/*.c
-            components/lvgl/src/display/*.c
-            components/lvgl/src/draw/sw/*.c        # Software renderer
-            components/lvgl/src/draw/lv_draw*.c    # Draw core
-            components/lvgl/src/font/*.c
-            components/lvgl/src/indev/*.c
-            components/lvgl/src/layouts/*.c
-            components/lvgl/src/misc/*.c
-            components/lvgl/src/osal/*.c
-            components/lvgl/src/stdlib/*.c
-            components/lvgl/src/themes/*.c
-            components/lvgl/src/tick/*.c
-            components/lvgl/src/widgets/*.c
+            components/lvgl/csrc/core/*.c
+            components/lvgl/csrc/display/*.c
+            components/lvgl/csrc/draw/sw/*.c        # Software renderer
+            components/lvgl/csrc/draw/lv_draw*.c    # Draw core
+            components/lvgl/csrc/font/*.c
+            components/lvgl/csrc/indev/*.c
+            components/lvgl/csrc/layouts/*.c
+            components/lvgl/csrc/misc/*.c
+            components/lvgl/csrc/osal/*.c
+            components/lvgl/csrc/stdlib/*.c
+            components/lvgl/csrc/themes/*.c
+            components/lvgl/csrc/tick/*.c
+            components/lvgl/csrc/widgets/*.c
     )
 
     # === LVGL Port Layer ===
@@ -141,12 +141,22 @@ elseif(TEST_CASE STREQUAL "lvgl")
     list(APPEND USER_SOURCES ${LVGL_SOURCES})
     list(APPEND USER_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl
-            ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl/csrc
     )
 
     # LVGL specific compile definitions
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
             LV_CONF_INCLUDE_SIMPLE=1
+    )
+
+elseif(TEST_CASE STREQUAL "cjson")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/cjson_tests.c)
+    list(APPEND USER_SOURCES
+            components/cjson/csrc/cJSON.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/cjson
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/cjson/csrc
     )
 
 elseif (TEST_CASE STREQUAL "servo")
