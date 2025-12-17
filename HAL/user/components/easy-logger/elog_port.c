@@ -27,7 +27,7 @@
  * Modified for stm32-swissknife project.
  */
 
-#include <elog.h>
+#include "elog_port.h"
 #include "main.h"
 #include "drivers/uart.h"
 

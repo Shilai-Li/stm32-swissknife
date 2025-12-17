@@ -1,5 +1,5 @@
 # Test Case Selection
-set(TEST_CASE "letter-shell" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
+set(TEST_CASE "easy-logger" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -30,21 +30,26 @@ elseif(TEST_CASE STREQUAL "letter-shell")
             components/letter-shell/csrc/shell_ext.c
             components/letter-shell/letter-shell_port.c
     )
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/letter-shell components)
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/letter-shell
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/letter-shell/csrc
+    )
 
 elseif(TEST_CASE STREQUAL "easy-logger")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/easylogger_tests.c)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/easy-logger_tests.c)
     list(APPEND USER_SOURCES
             components/easy-logger/csrc/elog.c
+            components/easy-logger/csrc/elog_async.c
+            components/easy-logger/csrc/elog_buf.c
             components/easy-logger/csrc/elog_utils.c
             components/easy-logger/elog_port.c
     )
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-            components/easy-logger/csrc
-            components
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/easy-logger
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/easy-logger/csrc
     )
 
-elseif(TEST_CASE STREQUAL "lfs")
+elseif(TEST_CASE STREQUAL "littlefs")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/littlefs_tests.c)
     list(APPEND USER_SOURCES
             components/littlefs/csrc/lfs.c
@@ -52,7 +57,10 @@ elseif(TEST_CASE STREQUAL "lfs")
             components/littlefs/littlefs_port.c
             drivers/w25qxx.c
     )
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/littlefs components)
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/littlefs
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/littlefs/csrc
+    )
 
 elseif(TEST_CASE STREQUAL "u8g2")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/u8g2_tests.c)
@@ -99,7 +107,9 @@ elseif(TEST_CASE STREQUAL "u8g2")
     )
 
     list(APPEND USER_SOURCES ${U8G2_SOURCES})
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/u8g2 components)
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/u8g2
+    )
 
 elseif (TEST_CASE STREQUAL "servo")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
@@ -248,13 +258,16 @@ endif()
 # Create the library with the selected sources
 add_library(User OBJECT ${USER_SOURCES})
 
-# Include directories (kept global for simplicity, or can be conditional too)
+# Include directories - 基础路径（全局）
 target_include_directories(User PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+
         ${CMAKE_CURRENT_SOURCE_DIR}/applications
         ${CMAKE_CURRENT_SOURCE_DIR}/components
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers
         ${CMAKE_CURRENT_SOURCE_DIR}/middlewares
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        
+        ${USER_INCLUDES}  # 组件特定的 include 路径（条件化）
 )
 
 target_link_libraries(User PUBLIC stm32cubemx)

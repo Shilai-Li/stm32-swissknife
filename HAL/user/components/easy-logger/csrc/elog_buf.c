@@ -26,7 +26,7 @@
  * Created on: 2016-11-09
  */
 
-#include <elog.h>
+#include "elog.h"
 #include <string.h>
 
 #ifdef ELOG_BUF_OUTPUT_ENABLE

@@ -11,10 +11,10 @@
 
 #include "main.h"
 #include "drivers/uart.h"
-#include <elog.h>
 
-/* 定义模块标签 */
+/* 定义模块标签 - 必须在 include elog.h 之前定义 */
 #define LOG_TAG "main"
+#include "elog.h"
 
 void User_Entry(void) {
     // 1. 初始化 UART 驱动

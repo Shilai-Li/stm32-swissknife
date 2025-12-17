@@ -26,7 +26,7 @@
  * Created on: 2016-11-06
  */
 
-#include <elog.h>
+#include "elog.h"
 #include <string.h>
 
 #ifdef ELOG_ASYNC_OUTPUT_ENABLE
