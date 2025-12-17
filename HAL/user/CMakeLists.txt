@@ -247,6 +247,26 @@ elseif(TEST_CASE STREQUAL "flexible_button")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/flexible_button/csrc
     )
 
+elseif(TEST_CASE STREQUAL "freertos")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/freertos_tests.c)
+    list(APPEND USER_SOURCES
+            components/freertos/csrc/tasks.c
+            components/freertos/csrc/queue.c
+            components/freertos/csrc/list.c
+            components/freertos/csrc/timers.c
+            components/freertos/csrc/event_groups.c
+            components/freertos/csrc/stream_buffer.c
+            components/freertos/csrc/portable/GCC/ARM_CM3/port.c
+            components/freertos/csrc/portable/MemMang/heap_4.c
+            components/freertos/freertos_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/freertos
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/freertos/csrc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/freertos/csrc/portable/GCC/ARM_CM3
+    )
+
+
 # Drivers
 elseif(TEST_CASE STREQUAL "at24cxx")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/at24cxx_tests.c)
