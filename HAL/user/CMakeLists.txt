@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "esp8266_mqtt" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "coremqtt" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -159,6 +159,18 @@ elseif(TEST_CASE STREQUAL "cjson")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/cjson/csrc
     )
 
+elseif(TEST_CASE STREQUAL "coremqtt")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/coremqtt_tests.c)
+    list(APPEND USER_SOURCES
+            components/coremqtt/csrc/core_mqtt.c
+            components/coremqtt/csrc/core_mqtt_serializer.c
+            components/coremqtt/csrc/core_mqtt_state.c
+            components/coremqtt/coremqtt_port.c
+    )
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/coremqtt
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/coremqtt/csrc
+    )
 
 elseif(TEST_CASE STREQUAL "nanomodbus")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/nanomodbus_tests.c)
