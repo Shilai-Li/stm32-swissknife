@@ -111,6 +111,44 @@ elseif(TEST_CASE STREQUAL "u8g2")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/u8g2
     )
 
+elseif(TEST_CASE STREQUAL "lvgl")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/lvgl_tests.c)
+
+    # === LVGL Core Files (Auto-collected) ===
+    # Use GLOB_RECURSE to collect all LVGL source files
+    file(GLOB_RECURSE LVGL_CORE_SOURCES
+            components/lvgl/csrc/core/*.c
+            components/lvgl/csrc/display/*.c
+            components/lvgl/csrc/draw/sw/*.c        # Software renderer
+            components/lvgl/csrc/draw/lv_draw*.c    # Draw core
+            components/lvgl/csrc/font/*.c
+            components/lvgl/csrc/indev/*.c
+            components/lvgl/csrc/layouts/*.c
+            components/lvgl/csrc/misc/*.c
+            components/lvgl/csrc/osal/*.c
+            components/lvgl/csrc/stdlib/*.c
+            components/lvgl/csrc/themes/*.c
+            components/lvgl/csrc/tick/*.c
+            components/lvgl/csrc/widgets/*.c
+    )
+
+    # === LVGL Port Layer ===
+    list(APPEND LVGL_SOURCES
+            ${LVGL_CORE_SOURCES}
+            components/lvgl/lvgl_port.c
+    )
+
+    list(APPEND USER_SOURCES ${LVGL_SOURCES})
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl
+            ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl/csrc
+    )
+
+    # LVGL specific compile definitions
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+            LV_CONF_INCLUDE_SIMPLE=1
+    )
+
 elseif (TEST_CASE STREQUAL "servo")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
     list(APPEND USER_SOURCES
