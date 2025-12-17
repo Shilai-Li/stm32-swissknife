@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 #include "main.h"
-#include "letter-shell/shell.h"
+#include "csrc/shell.h"
 
 extern Shell shell;
 

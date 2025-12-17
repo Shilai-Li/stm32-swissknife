@@ -1,4 +1,4 @@
-#include "servo.h"
+#include "../../servo.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

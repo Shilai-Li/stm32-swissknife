@@ -3,7 +3,7 @@
  * @brief Test Letter Shell with UART DMA
  */
 
-#include "letter-shell_port.h"
+#include "../letter-shell/letter-shell_port.h"
 #include "drivers/uart.h"
 #include <stdio.h>
 

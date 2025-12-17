@@ -26,18 +26,30 @@ if (TEST_CASE STREQUAL "stm32f429HAL步进电机驱动")
 elseif(TEST_CASE STREQUAL "letter-shell")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/letter-shell_tests.c)
     list(APPEND USER_SOURCES
-            components/letter-shell/shell.c
-            components/letter-shell/shell_ext.c
-            components/letter-shell_port.c
+            components/letter-shell/csrc/shell.c
+            components/letter-shell/csrc/shell_ext.c
+            components/letter-shell/letter-shell_port.c
     )
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/letter-shell components)
+
+elseif(TEST_CASE STREQUAL "easy-logger")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/easylogger_tests.c)
+    list(APPEND USER_SOURCES
+            components/easy-logger/csrc/elog.c
+            components/easy-logger/csrc/elog_utils.c
+            components/easy-logger/elog_port.c
+    )
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+            components/easy-logger/csrc
+            components
+    )
 
 elseif(TEST_CASE STREQUAL "lfs")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/littlefs_tests.c)
     list(APPEND USER_SOURCES
-            components/littlefs/lfs.c
-            components/littlefs/lfs_util.c
-            components/littlefs_port.c
+            components/littlefs/csrc/lfs.c
+            components/littlefs/csrc/lfs_util.c
+            components/littlefs/littlefs_port.c
             drivers/w25qxx.c
     )
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE components/littlefs components)
@@ -79,7 +91,7 @@ elseif(TEST_CASE STREQUAL "u8g2")
             components/u8g2/u8x8_u16toa.c
 
             # === Porting Layer ===
-            components/u8g2_port.c
+            components/u8g2/u8g2_port.c
 
             # === Selected Display Drivers (Uncomment as needed) ===
             components/u8g2/u8x8_d_ssd1306_128x64_noname.c
@@ -92,8 +104,8 @@ elseif(TEST_CASE STREQUAL "u8g2")
 elseif (TEST_CASE STREQUAL "servo")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE components/tests/servo_test.c)
     list(APPEND USER_SOURCES
-            components/servo.c
-            components/servo_port.c
+            components/servo/csrc/servo.c
+            components/servo/servo_port.c
             drivers/dc_motor.c
             middlewares/algorithms/pid.c
     )

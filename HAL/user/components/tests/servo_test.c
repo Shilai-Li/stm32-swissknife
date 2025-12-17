@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "servo_port.h"
+#include "../servo/servo_port.h"
 #include "uart.h"
 
 void User_Entry(void)

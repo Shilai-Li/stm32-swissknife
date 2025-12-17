@@ -3,7 +3,7 @@
  * @brief LittleFS Port Implementation for W25Qxx
  */
 
-#include "littlefs_port.h"
+#include "../littlefs_port.h"
 #include <string.h>
 
 // Global LFS instances

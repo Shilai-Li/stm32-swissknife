@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 #include "main.h"
-#include "littlefs/lfs.h"
+#include "lfs.h"
 #include "drivers/w25qxx.h"
 
 // --- Configuration ---
