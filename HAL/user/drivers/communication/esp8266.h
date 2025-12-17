@@ -121,6 +121,68 @@ ESP8266_Status_t ESP8266_Send(ESP8266_Handle_t *handle, const uint8_t *data, uin
  */
 ESP8266_Status_t ESP8266_SendCmd(ESP8266_Handle_t *handle, const char *cmd, const char *expected, uint32_t timeout_ms);
 
+/* ============================================================================
+ * MQTT API (Requires ESP8266 AT Firmware 2.0+)
+ * ========================================================================= */
+
+/**
+ * @brief  Configure MQTT User Parameters
+ * @param  client_id  MQTT Client ID (unique identifier)
+ * @param  username   MQTT Username (NULL if not required)
+ * @param  password   MQTT Password (NULL if not required)
+ * @return ESP8266_OK on success
+ */
+ESP8266_Status_t ESP8266_MQTT_UserConfig(ESP8266_Handle_t *handle, 
+                                          const char *client_id,
+                                          const char *username,
+                                          const char *password);
+
+/**
+ * @brief  Connect to MQTT Broker
+ * @param  host  Broker hostname or IP address
+ * @param  port  Broker port (usually 1883 for non-TLS)
+ * @return ESP8266_OK on success
+ */
+ESP8266_Status_t ESP8266_MQTT_Connect(ESP8266_Handle_t *handle,
+                                       const char *host,
+                                       uint16_t port);
+
+/**
+ * @brief  Disconnect from MQTT Broker
+ * @return ESP8266_OK on success
+ */
+ESP8266_Status_t ESP8266_MQTT_Disconnect(ESP8266_Handle_t *handle);
+
+/**
+ * @brief  Publish MQTT Message
+ * @param  topic  MQTT Topic string
+ * @param  data   Message payload
+ * @param  qos    Quality of Service (0, 1, or 2)
+ * @return ESP8266_OK on success
+ */
+ESP8266_Status_t ESP8266_MQTT_Publish(ESP8266_Handle_t *handle,
+                                       const char *topic,
+                                       const char *data,
+                                       uint8_t qos);
+
+/**
+ * @brief  Subscribe to MQTT Topic
+ * @param  topic  MQTT Topic string (supports wildcards: +, #)
+ * @param  qos    Quality of Service (0, 1, or 2)
+ * @return ESP8266_OK on success
+ */
+ESP8266_Status_t ESP8266_MQTT_Subscribe(ESP8266_Handle_t *handle,
+                                         const char *topic,
+                                         uint8_t qos);
+
+/**
+ * @brief  Unsubscribe from MQTT Topic
+ * @param  topic  MQTT Topic string
+ * @return ESP8266_OK on success
+ */
+ESP8266_Status_t ESP8266_MQTT_Unsubscribe(ESP8266_Handle_t *handle,
+                                           const char *topic);
+
 #ifdef __cplusplus
 }
 #endif

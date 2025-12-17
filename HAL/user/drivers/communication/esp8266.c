@@ -107,7 +107,7 @@ ESP8266_Status_t ESP8266_Init(ESP8266_Handle_t *handle, const ESP8266_Config_t *
 ESP8266_Status_t ESP8266_Reset(ESP8266_Handle_t *handle) {
     ESP8266_SendCmd(handle, "AT+RST\r\n", "ready", 2000); // Wait for ready text
     // Sometimes ready doesn't come if echo is off? usually it prints junk then ready.
-    delay_ms(500); 
+    Delay_ms(500); 
     return ESP8266_OK;
 }
 
@@ -163,4 +163,100 @@ ESP8266_Status_t ESP8266_SendCmd(ESP8266_Handle_t *handle, const char *cmd, cons
     UART_SendString(handle->config.cmd_uart, cmd);
     
     return WaitFor(handle, expected, timeout_ms);
+}
+
+/* ============================================================================
+ * MQTT Functions (Requires ESP8266 AT Firmware 2.0+)
+ * ========================================================================= */
+
+ESP8266_Status_t ESP8266_MQTT_UserConfig(ESP8266_Handle_t *handle, 
+                                          const char *client_id,
+                                          const char *username,
+                                          const char *password) {
+    char cmd[256];
+    
+    // AT+MQTTUSERCFG=<LinkID>,<scheme>,<"client_id">,<"username">,<"password">,<cert_key_ID>,<CA_ID>,<"path">
+    // LinkID=0 (single connection), scheme=1 (MQTT over TCP)
+    
+    if (username && password) {
+        snprintf(cmd, sizeof(cmd), 
+                 "AT+MQTTUSERCFG=0,1,\"%s\",\"%s\",\"%s\",0,0,\"\"\r\n",
+                 client_id, username, password);
+    } else if (username) {
+        snprintf(cmd, sizeof(cmd), 
+                 "AT+MQTTUSERCFG=0,1,\"%s\",\"%s\",\"\",0,0,\"\"\r\n",
+                 client_id, username);
+    } else {
+        snprintf(cmd, sizeof(cmd), 
+                 "AT+MQTTUSERCFG=0,1,\"%s\",\"\",\"\",0,0,\"\"\r\n",
+                 client_id);
+    }
+    
+    ESP_Log(handle, "[MQTT] Configuring user: %s\r\n", client_id);
+    return ESP8266_SendCmd(handle, cmd, "OK", 2000);
+}
+
+ESP8266_Status_t ESP8266_MQTT_Connect(ESP8266_Handle_t *handle,
+                                       const char *host,
+                                       uint16_t port) {
+    char cmd[128];
+    
+    // AT+MQTTCONN=<LinkID>,<"host">,<port>,<reconnect>
+    snprintf(cmd, sizeof(cmd), "AT+MQTTCONN=0,\"%s\",%d,0\r\n", host, port);
+    
+    ESP_Log(handle, "[MQTT] Connecting to %s:%d...\r\n", host, port);
+    
+    ESP8266_Status_t status = ESP8266_SendCmd(handle, cmd, "OK", 10000);
+    
+    if (status == ESP8266_OK) {
+        status = WaitFor(handle, "MQTTCONNECTED", 5000);
+        if (status == ESP8266_OK) {
+            ESP_Log(handle, "[MQTT] Connected!\r\n");
+        }
+    }
+    
+    return status;
+}
+
+ESP8266_Status_t ESP8266_MQTT_Disconnect(ESP8266_Handle_t *handle) {
+    ESP_Log(handle, "[MQTT] Disconnecting...\r\n");
+    return ESP8266_SendCmd(handle, "AT+MQTTCLEAN=0\r\n", "OK", 2000);
+}
+
+ESP8266_Status_t ESP8266_MQTT_Publish(ESP8266_Handle_t *handle,
+                                       const char *topic,
+                                       const char *data,
+                                       uint8_t qos) {
+    char cmd[512];
+    
+    // AT+MQTTPUB=<LinkID>,<"topic">,<"data">,<qos>,<retain>
+    snprintf(cmd, sizeof(cmd), 
+             "AT+MQTTPUB=0,\"%s\",\"%s\",%d,0\r\n",
+             topic, data, qos);
+    
+    ESP_Log(handle, "[MQTT] Publishing to %s: %s\r\n", topic, data);
+    return ESP8266_SendCmd(handle, cmd, "OK", 3000);
+}
+
+ESP8266_Status_t ESP8266_MQTT_Subscribe(ESP8266_Handle_t *handle,
+                                         const char *topic,
+                                         uint8_t qos) {
+    char cmd[256];
+    
+    // AT+MQTTSUB=<LinkID>,<"topic">,<qos>
+    snprintf(cmd, sizeof(cmd), "AT+MQTTSUB=0,\"%s\",%d\r\n", topic, qos);
+    
+    ESP_Log(handle, "[MQTT] Subscribing to %s (QoS %d)\r\n", topic, qos);
+    return ESP8266_SendCmd(handle, cmd, "OK", 2000);
+}
+
+ESP8266_Status_t ESP8266_MQTT_Unsubscribe(ESP8266_Handle_t *handle,
+                                           const char *topic) {
+    char cmd[256];
+    
+    // AT+MQTTUNSUB=<LinkID>,<"topic">
+    snprintf(cmd, sizeof(cmd), "AT+MQTTUNSUB=0,\"%s\"\r\n", topic);
+    
+    ESP_Log(handle, "[MQTT] Unsubscribing from %s\r\n", topic);
+    return ESP8266_SendCmd(handle, cmd, "OK", 2000);
 }

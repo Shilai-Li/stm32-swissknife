@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "nanomodbus" CACHE STRING "Select which test to run (BUZZER, CRSF, DELAY, DHT11, KEY, LED, MOTOR, MPU6050, SSD1306, SSD1306_CUSTOM, UART, W25QXX)" FORCE)
+set(TEST_CASE "esp8266_mqtt" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -262,6 +262,13 @@ elseif(TEST_CASE STREQUAL "xpt2046")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/xpt2046_tests.c)
 elseif(TEST_CASE STREQUAL "esp8266")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/esp8266_tests.c)
+    list(APPEND USER_SOURCES 
+        drivers/communication/esp8266.c
+        drivers/communication/uart.c
+        drivers/system/delay.c
+    )
+elseif(TEST_CASE STREQUAL "esp8266_mqtt")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/esp8266_mqtt_tests.c)
     list(APPEND USER_SOURCES 
         drivers/communication/esp8266.c
         drivers/communication/uart.c
