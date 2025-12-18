@@ -3,8 +3,8 @@
  * @brief SD Card SPI Driver Test Code
  */
 
-#include "drivers/sd_card_spi.h"
-#include "drivers/uart.h"
+#include "sd_card_spi.h"
+#include "uart.h"
 #include <string.h>
 
 // --- Configuration ---

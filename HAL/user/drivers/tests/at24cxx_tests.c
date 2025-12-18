@@ -13,8 +13,8 @@
  *    - Configure USART1 (or whichever is used by uart.c)
  */
 
-#include "drivers/at24cxx.h"
-#include "drivers/uart.h"
+#include "at24cxx.h"
+#include "uart.h"
 #include <string.h>
 
 // --- Configuration ---

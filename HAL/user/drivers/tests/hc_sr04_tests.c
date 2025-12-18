@@ -13,8 +13,8 @@
  *    - ECHO: Input
  */
 
-#include "drivers/hc_sr04.h"
-#include "drivers/uart.h"
+#include "hc_sr04.h"
+#include "uart.h"
 
 // --- Configuration ---
 extern TIM_HandleTypeDef htim1; // Use TIM1 for 1us timebase

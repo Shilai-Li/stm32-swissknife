@@ -27,8 +27,8 @@
  *    - BLK -> BLK Pin
  */
 
-#include "drivers/st7789.h"
-#include "drivers/uart.h"
+#include "st7789.h"
+#include "uart.h"
 
 // --- Configuration ---
 extern SPI_HandleTypeDef hspi1;

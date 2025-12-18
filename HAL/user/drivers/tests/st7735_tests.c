@@ -3,8 +3,8 @@
  * @brief ST7735 TFT LCD Driver Test Code
  */
 
-#include "drivers/st7735.h"
-#include "drivers/uart.h"
+#include "st7735.h"
+#include "uart.h"
 
 // --- Configuration ---
 extern SPI_HandleTypeDef hspi1;

@@ -3,8 +3,8 @@
  * @brief RS485 Driver Test Code
  */
 
-#include "drivers/rs485.h"
-#include "drivers/uart.h"
+#include "rs485.h"
+#include "uart.h"
 
 // --- Configuration ---
 // Requires a UART and a GPIO for DE

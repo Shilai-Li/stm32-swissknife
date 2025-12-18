@@ -3,8 +3,8 @@
  * @brief Servo Driver Test Code
  */
 
-#include "drivers/servo_motor.h"
-#include "drivers/uart.h"
+#include "servo_motor.h"
+#include "uart.h"
 
 // --- Configuration ---
 // Requires a Timer (e.g. TIM1 or TIM2)

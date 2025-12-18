@@ -3,8 +3,8 @@
  * @brief ADC Driver Test Code
  */
 
-#include "drivers/adc_filter.h"
-#include "drivers/uart.h"
+#include "adc_filter.h"
+#include "uart.h"
 
 // --- Configuration ---
 // Requires ADC1 initialized in main.c

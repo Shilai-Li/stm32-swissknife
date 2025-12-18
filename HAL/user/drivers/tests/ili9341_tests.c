@@ -3,8 +3,8 @@
  * @brief ILI9341 TFT LCD Driver Test Code
  */
 
-#include "drivers/ili9341.h"
-#include "drivers/uart.h"
+#include "ili9341.h"
+#include "uart.h"
 
 // --- Configuration ---
 // Adapt these to your actual wiring

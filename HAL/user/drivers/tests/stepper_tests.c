@@ -3,8 +3,8 @@
  * @brief Stepper Driver Test Code
  */
 
-#include "drivers/stepper_motor.h"
-#include "drivers/uart.h"
+#include "stepper_motor.h"
+#include "uart.h"
 
 // --- Configuration ---
 // Requires TIM1 for timebase (1us ticks) - Shared with HC-SR04 test if present
