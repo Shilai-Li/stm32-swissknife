@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "lwrb" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "mpu6050" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -301,12 +301,12 @@ elseif(TEST_CASE STREQUAL "key")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/key_driver_test.c)
     list(APPEND USER_SOURCES drivers/io/key.c)
 elseif(TEST_CASE STREQUAL "led")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/led_driver_test.c)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/led_driver_tests.c)
     list(APPEND USER_SOURCES drivers/io/led.c)
 elseif(TEST_CASE STREQUAL "motor")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/motor_driver_test.c)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/motor_tests.c)
 elseif(TEST_CASE STREQUAL "mpu6050")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/mpu6050_driver_test.c)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/mpu6050_tests.c)
     list(APPEND USER_SOURCES drivers/sensor/mpu6050.c)
 elseif(TEST_CASE STREQUAL "rs485")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/rs485_tests.c)
