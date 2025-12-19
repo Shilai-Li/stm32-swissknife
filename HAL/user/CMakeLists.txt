@@ -308,6 +308,10 @@ elseif(TEST_CASE STREQUAL "motor")
 elseif(TEST_CASE STREQUAL "mpu6050")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/mpu6050_tests.c)
     list(APPEND USER_SOURCES drivers/sensor/mpu6050.c)
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/sensor
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
+    )
 elseif(TEST_CASE STREQUAL "rs485")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/rs485_tests.c)
 elseif(TEST_CASE STREQUAL "ssd1306_custom")
@@ -412,25 +416,16 @@ endif()
 # Create the library with the selected sources
 add_library(User OBJECT ${USER_SOURCES})
 
-# Include directories - 基础路径（全局）
+# Include directories
 target_include_directories(User PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 
         ${CMAKE_CURRENT_SOURCE_DIR}/applications
         ${CMAKE_CURRENT_SOURCE_DIR}/components
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/display
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/encoder
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/interface
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/io
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/motor
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/sensor
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/storage
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/system
         ${CMAKE_CURRENT_SOURCE_DIR}/middlewares
         
-        ${USER_INCLUDES}  # 组件特定的 include 路径（条件化）
+        ${USER_INCLUDES}
 )
 
 target_link_libraries(User PUBLIC stm32cubemx)
