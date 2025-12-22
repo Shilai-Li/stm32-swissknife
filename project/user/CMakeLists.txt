@@ -1,12 +1,12 @@
 ﻿# Test Case Selection
-set(TEST_CASE "mpu6050" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "easy-logger" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
 # You can add common files here that are ALWAYS needed
 set(USER_SOURCES
-        drivers/system/delay.c
-        drivers/communication/uart.c
+        # drivers/system/delay.c
+        # drivers/communication/uart.c
 )
 
 # Applications
@@ -43,10 +43,14 @@ elseif(TEST_CASE STREQUAL "easy-logger")
             components/easy-logger/csrc/elog_buf.c
             components/easy-logger/csrc/elog_utils.c
             components/easy-logger/elog_port.c
+
+            drivers/communication/uart.c
     )
     list(APPEND USER_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/components/easy-logger
             ${CMAKE_CURRENT_SOURCE_DIR}/components/easy-logger/csrc
+
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
     )
 
 elseif(TEST_CASE STREQUAL "littlefs")
@@ -60,6 +64,8 @@ elseif(TEST_CASE STREQUAL "littlefs")
     list(APPEND USER_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/components/littlefs
             ${CMAKE_CURRENT_SOURCE_DIR}/components/littlefs/csrc
+
+
     )
 
 elseif(TEST_CASE STREQUAL "u8g2")
@@ -264,6 +270,8 @@ elseif(TEST_CASE STREQUAL "freertos")
             ${CMAKE_CURRENT_SOURCE_DIR}/components/freertos
             ${CMAKE_CURRENT_SOURCE_DIR}/components/freertos/csrc/include
             ${CMAKE_CURRENT_SOURCE_DIR}/components/freertos/csrc/portable/GCC/ARM_CM3
+
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
     )
 
 
