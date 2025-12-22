@@ -7,7 +7,7 @@
 
         {
             "cwd": "${workspaceFolder}",
-            "executable": "D:/ProgramData/VSCode/C/STM32/stm32-project/HAL/build/Debug/project.elf",
+            "executable": "D:/ProgramData/VSCode/C/STM32/stm32-project/build/Debug/project.elf",
             "name": "Debug with ST-Link",
             "request": "launch",
             "type": "cortex-debug",
