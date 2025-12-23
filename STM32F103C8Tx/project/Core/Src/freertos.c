@@ -114,6 +114,9 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+  extern void user_main(void);
+  user_main();
+  vTaskDelete(NULL);
   /* Infinite loop */
   for(;;)
   {
