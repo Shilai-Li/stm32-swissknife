@@ -10,10 +10,6 @@
 
 #include "main.h"
 
-#ifndef __STM32F1xx_HAL_SPI_H
-#include "stm32f1xx_hal.h"
-#endif
-
 // --- Calibration Constants (Default for 2.4/2.8/3.5 inch screens) ---
 // User should call XPT2046_SetCalibration to override these
 #define XPT2046_X_MIN       200

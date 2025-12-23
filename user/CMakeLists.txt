@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "led" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "buzzer" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -43,8 +43,13 @@ define_module(i2c_soft
 )
 
 # ==========================================
-# 2. IO Drivers
+# 2. io
 # ==========================================
+
+define_module(buzzer
+    SOURCES drivers/io/buzzer.c
+    INCLUDES drivers/io
+)
 
 define_module(led
     SOURCES drivers/io/led.c
@@ -56,8 +61,13 @@ define_module(key
     INCLUDES drivers/io
 )
 
-define_module(buzzer
-    SOURCES drivers/io/buzzer.c
+define_module(ws2812
+    SOURCES drivers/io/ws2812.c
+    INCLUDES drivers/io
+)
+
+define_module(xpt2046
+    SOURCES drivers/io/xpt2046.c
     INCLUDES drivers/io
 )
 
@@ -140,6 +150,10 @@ if (NOT DEFINED ENABLED_MODULES)
     if (TEST_CASE STREQUAL "led")
         list(APPEND ENABLED_MODULES led)
         set(TEST_SRC drivers/tests/led_tests.c)
+
+    elseif (TEST_CASE STREQUAL "buzzer")
+        list(APPEND ENABLED_MODULES buzzer uart)
+        set(TEST_SRC drivers/tests/buzzer_tests.c)
 
     elseif (TEST_CASE STREQUAL "dht11")
         list(APPEND ENABLED_MODULES dht11 uart) # UART for printing

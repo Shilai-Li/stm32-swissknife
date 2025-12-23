@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "main.h"
+
 // LED driver interface configuration
 typedef enum
 {

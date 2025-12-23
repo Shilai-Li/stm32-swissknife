@@ -31,10 +31,6 @@
 
 #include "main.h"
 
-#ifndef __STM32F1xx_HAL_TIM_H
-#include "stm32f1xx_hal.h"
-#endif
-
 // --- Configuration ---
 // Limit max LEDs to control RAM usage.
 // Each LED requires: 3 bytes (RGB Buffer) + 24 * 2 bytes (DMA Buffer) = 51 bytes.
