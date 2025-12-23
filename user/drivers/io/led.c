@@ -1,10 +1,10 @@
 #include "led.h"
 
-#include "stm32f1xx_hal.h"
+#include "main.h"
 
 // LED GPIO configuration
-GPIO_TypeDef* GPIO_PORT[LED_n] = {GPIOC, GPIOC};
-uint16_t GPIO_PIN[LED_n] = {GPIO_PIN_13, GPIO_PIN_14};
+GPIO_TypeDef* GPIO_PORT[LED_n] = {GPIOB};
+uint16_t GPIO_PIN[LED_n] = {GPIO_PIN_2};
 // Define the logic level that turns the buzzer ON
 GPIO_PinState LED_ON_LEVEL[LED_n] = {GPIO_PIN_RESET, GPIO_PIN_RESET}; // Active Low
 
