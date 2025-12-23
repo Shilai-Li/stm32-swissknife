@@ -21,9 +21,6 @@ endif()
 # Set the project name
 set(CMAKE_PROJECT_NAME project)
 
-# Include toolchain file
-include("cmake/gcc-arm-none-eabi.cmake")
-
 # Enable compile command to ease indexing with e.g. clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
@@ -41,7 +38,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # Add User Drivers
-add_subdirectory(User)
+add_subdirectory(../user user)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -66,6 +63,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-    User
+
     # Add user defined libraries
+    user
 )

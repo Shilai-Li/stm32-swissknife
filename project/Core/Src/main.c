@@ -47,13 +47,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern void User_Entry(void);
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+extern void user_main(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -97,7 +97,7 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  User_Entry();
+  user_main();
   /* USER CODE END 2 */
 
   /* Infinite loop */
