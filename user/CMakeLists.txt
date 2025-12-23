@@ -29,6 +29,8 @@ elseif(TEST_CASE STREQUAL "letter-shell")
             components/letter-shell/csrc/shell.c
             components/letter-shell/csrc/shell_ext.c
             components/letter-shell/letter-shell_port.c
+
+            drivers/communication/uart.c
     )
     list(APPEND USER_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/components/letter-shell

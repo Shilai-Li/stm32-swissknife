@@ -5,9 +5,8 @@
 
 #include "../letter-shell/letter-shell_port.h"
 #include "uart.h"
-#include <stdio.h>
 
-void User_Entry(void) {
+void user_main(void) {
     // 1. 初始化 UART 驱动
     UART_Init();
     
