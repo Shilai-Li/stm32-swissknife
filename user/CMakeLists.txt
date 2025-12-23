@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "letter-shell" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "uart" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -280,6 +280,17 @@ elseif(TEST_CASE STREQUAL "freertos")
 
 
 # Drivers
+
+# communication
+elseif(TEST_CASE STREQUAL "uart")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/uart_tests.c)
+    list(APPEND USER_SOURCES
+            drivers/communication/uart.c
+    )
+    list(APPEND USER_INCLUDES
+            drivers/communication
+    )
+
 elseif(TEST_CASE STREQUAL "at24cxx")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/at24cxx_tests.c)
     list(APPEND USER_SOURCES drivers/storage/at24cxx.c)

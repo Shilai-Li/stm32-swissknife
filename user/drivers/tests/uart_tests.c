@@ -1,6 +1,8 @@
 #include "uart.h"
 
-void User_Entry(void)
+#include "main.h"
+
+void user_main(void)
 {
     UART_Init();
 
