@@ -307,9 +307,15 @@ elseif (TEST_CASE STREQUAL "CRSF")
 elseif(TEST_CASE STREQUAL "delay")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/delay_driver_test.c)
     # Delay driver is already in common sources
+
+# sensor
 elseif(TEST_CASE STREQUAL "dht11")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/dht11_driver_test.c)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/dht11_test.c)
     list(APPEND USER_SOURCES drivers/sensor/dht11.c)
+    list(APPEND USER_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/sensor
+    )
+
 elseif(TEST_CASE STREQUAL "encoder")
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE drivers/tests/encoder_tests.c)
 elseif(TEST_CASE STREQUAL "hc_sr04")
