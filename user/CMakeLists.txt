@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "easy-logger" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "letter-shell" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Initialize source list
@@ -33,6 +33,8 @@ elseif(TEST_CASE STREQUAL "letter-shell")
     list(APPEND USER_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/components/letter-shell
             ${CMAKE_CURRENT_SOURCE_DIR}/components/letter-shell/csrc
+
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
     )
 
 elseif(TEST_CASE STREQUAL "easy-logger")
@@ -422,10 +424,10 @@ else()
 endif()
 
 # Create the library with the selected sources
-add_library(User OBJECT ${USER_SOURCES})
+add_library(user OBJECT ${USER_SOURCES})
 
 # Include directories
-target_include_directories(User PUBLIC
+target_include_directories(user PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 
         ${CMAKE_CURRENT_SOURCE_DIR}/applications
@@ -436,4 +438,4 @@ target_include_directories(User PUBLIC
         ${USER_INCLUDES}
 )
 
-target_link_libraries(User PUBLIC stm32cubemx)
+target_link_libraries(user PUBLIC stm32cubemx)
