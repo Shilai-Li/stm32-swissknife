@@ -15,6 +15,7 @@
  *    - Data Width: Half Word (16 bit) -> Half Word.
  */
 
+#include "tim.h"
 #include "ws2812.h"
 #include "uart.h"
 
@@ -39,7 +40,7 @@ void user_main(void)
 
     // 1. Initialize (8 LEDs)
     UART_Debug_Printf("Init WS2812 on TIM4 CH1...\r\n");
-    WS2812_Init(&hws, &htim4, TIM_CHANNEL_1, 8);
+    WS2812_Init(&hws, &htim1, TIM_CHANNEL_1, 8);
     
     // 2. Rainbow Cycle
     UART_Debug_Printf("Running Rainbow Loop...\r\n");

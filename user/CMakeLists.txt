@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "w25qxx" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "xpt2046" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -389,13 +389,19 @@ if (NOT DEFINED ENABLED_MODULES)
     # encoder
 
     # io
-    elseif (TEST_CASE STREQUAL "led")
-        list(APPEND ENABLED_MODULES led)
-        set(TEST_SRC drivers/tests/led_tests.c)
-
     elseif (TEST_CASE STREQUAL "buzzer")
         list(APPEND ENABLED_MODULES buzzer uart)
         set(TEST_SRC drivers/tests/buzzer_tests.c)
+    elseif (TEST_CASE STREQUAL "led")
+        list(APPEND ENABLED_MODULES led)
+        set(TEST_SRC drivers/tests/led_tests.c)
+    elseif (TEST_CASE STREQUAL "ws2812")
+        list(APPEND ENABLED_MODULES ws2812 uart)
+        set(TEST_SRC drivers/tests/ws2812_tests.c)
+    elseif (TEST_CASE STREQUAL "xpt2046")
+        list(APPEND ENABLED_MODULES xpt2046 uart)
+        set(TEST_SRC drivers/tests/xpt2046_tests.c)
+    
     # motor
     elseif (TEST_CASE STREQUAL "bldc_motor_esc_encoder")
         list(APPEND ENABLED_MODULES bldc_motor_esc_encoder uart delay)
@@ -408,6 +414,7 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "stepper_motor")
         list(APPEND ENABLED_MODULES stepper_motor uart delay)
         set(TEST_SRC drivers/tests/stepper_motor_tests.c)
+
     # sensor
     elseif (TEST_CASE STREQUAL "bh1750")
         list(APPEND ENABLED_MODULES bh1750 uart delay)
@@ -453,7 +460,6 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "w25qxx")
         list(APPEND ENABLED_MODULES w25qxx uart delay)
         set(TEST_SRC drivers/tests/w25qxx_tests.c)
-
 
     # system
     elseif (TEST_CASE STREQUAL "delay")

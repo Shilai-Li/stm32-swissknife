@@ -8,6 +8,7 @@
  * - GPIO Input: Touch_IRQ (e.g. PB1) -> Pull Up recommended logic, usually internal pullup or external. XPT2046 IRQ is Open Drain low.
  */
 
+#include "spi.h"
 #include "xpt2046.h"
 #include "uart.h"
 
@@ -34,7 +35,7 @@ void user_main(void)
 
     // 1. Init
     UART_Debug_Printf("Init XPT2046 (SPI2, CS=PB12, IRQ=PB1)...\r\n");
-    XPT2046_Init(&htouch, &hspi2, 
+    XPT2046_Init(&htouch, &hspi1,
                  TOUCH_CS_PORT, TOUCH_CS_PIN,
                  TOUCH_IRQ_PORT, TOUCH_IRQ_PIN);
     
