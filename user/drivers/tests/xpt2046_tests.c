@@ -12,6 +12,8 @@
 #include "xpt2046.h"
 #include "uart.h"
 
+#include "main.h"
+
 // --- Config ---
 extern SPI_HandleTypeDef hspi2; // Use SPI2 for Touch (often shared with LCD or dedicated)
 

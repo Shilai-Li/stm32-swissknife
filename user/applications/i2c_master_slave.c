@@ -22,6 +22,7 @@ extern I2C_HandleTypeDef hi2c1;
 // Slave Address (7-bit: 0x20) -> Left Shifted for HAL (0x40)
 #define SLAVE_ADDR_7BIT 0x20
 #define SLAVE_ADDR_HAL  (SLAVE_ADDR_7BIT << 1)
+#define TRANSFER_SIZE 32 // Fixed size for stable exchange
 
 void user_main(void)
 {
@@ -66,21 +67,26 @@ void user_main(void)
     while (1)
     {
         // 1. Prepare Data
+        memset(buffer, 0, sizeof(buffer));
         sprintf((char*)buffer, "Hello #%d", tx_count++);
         
         // 2. Transmit
         UART_Debug_Printf("Master TX: '%s' ... ", buffer);
         
-        HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(
-            DEMO_I2C_HANDLE, 
-            SLAVE_ADDR_HAL, 
-            buffer, 
-            strlen((char*)buffer) + 1, // Include null terminator
-            1000 // Timeout 1s
-        );
+        if (HAL_I2C_Master_Transmit(DEMO_I2C_HANDLE, SLAVE_ADDR_HAL, buffer, TRANSFER_SIZE, 1000) == HAL_OK) {
+            UART_Debug_Printf("ACK. Recv Reply... ");
+            
+            // Give slave a moment to switch context if needed, though clock stretching should handle it.
+            HAL_Delay(10); 
+            
+            // 3. Receive Reply
+            memset(buffer, 0, sizeof(buffer));
+            if (HAL_I2C_Master_Receive(DEMO_I2C_HANDLE, SLAVE_ADDR_HAL, buffer, TRANSFER_SIZE, 1000) == HAL_OK) {
+                UART_Debug_Printf("Got: '%s'\r\n", buffer);
+            } else {
+                UART_Debug_Printf("No Reply (Err/Timeout)\r\n");
+            }
         
-        if (status == HAL_OK) {
-            UART_Debug_Printf("ACK\r\n");
         } else {
             UART_Debug_Printf("NACK/ERR (%d)\r\n", HAL_I2C_GetError(DEMO_I2C_HANDLE));
         }
@@ -106,27 +112,32 @@ void user_main(void)
     }
 
     uint8_t rx_buffer[32];
+    uint8_t tx_buffer[32];
     
     while (1)
     {
-        // UART_Debug_Printf("Slave: Waiting...\r\n");
-        
-        // Blocking Receive
+        // 1. Wait for Master to WRITE data
         memset(rx_buffer, 0, sizeof(rx_buffer));
         
-        // Reading 10 bytes for demo. 
-        // Note: HAL_I2C_Slave_Receive blocks until EXACTLY Size bytes are received or Timeout.
-        // If master sends fewer bytes, this will timeout!
-        HAL_StatusTypeDef status = HAL_I2C_Slave_Receive(DEMO_I2C_HANDLE, rx_buffer, 10, 2000); 
-        
-        if (status == HAL_OK) {
-            UART_Debug_Printf("Slave RX: '%s'\r\n", rx_buffer);
-        } else if (status == HAL_TIMEOUT) {
-            // Normal if no data
+        // We use a reasonably long timeout so we don't spam UART if idle, but not infinite so we can see it's alive
+        if (HAL_I2C_Slave_Receive(DEMO_I2C_HANDLE, rx_buffer, TRANSFER_SIZE, 2000) == HAL_OK) {
+            UART_Debug_Printf("Slave RX: '%s'. Sending Reply...\r\n", rx_buffer);
+            
+            // 2. Prepare Reply
+            memset(tx_buffer, 0, sizeof(tx_buffer));
+            snprintf((char*)tx_buffer, TRANSFER_SIZE, "Reply to #%c", rx_buffer[7]); // Grab the number from "Hello #x"
+            
+            // 3. Wait for Master to READ data
+            if (HAL_I2C_Slave_Transmit(DEMO_I2C_HANDLE, tx_buffer, TRANSFER_SIZE, 1000) != HAL_OK) {
+                 UART_Debug_Printf("Slave TX Fail (No Master Read?)\r\n");
+            } else {
+                 UART_Debug_Printf("Slave TX Done\r\n");
+            }
+            
         } else {
-             UART_Debug_Printf("Slave Err: %d\r\n", HAL_I2C_GetError(DEMO_I2C_HANDLE));
-             // If AF/BERR error, resetting handle might be needed
-             // HAL_I2C_Init(&hi2c1);
+             // Timeout or Error (Bus Idle)
+             // int err = HAL_I2C_GetError(DEMO_I2C_HANDLE);
+             // if (err != HAL_I2C_ERROR_NONE) UART_Debug_Printf("Slave Idle/Err: %d\r\n", err);
         }
     }
 #endif

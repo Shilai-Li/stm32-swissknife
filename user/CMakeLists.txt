@@ -1,6 +1,6 @@
 ﻿# Test Case Selection
-set(TEST_CASE "usb_serial" CACHE STRING "Select which test to run" FORCE)
-message("Selected Test Case: ${TEST_CASE}")
+set(TEST_CASE "i2c_slave" CACHE STRING "Select which test to run" FORCE)
+message("Selected Tesusb_serialt Case: ${TEST_CASE}")
 
 # ==========================================
 # 0. Helper Macros
