@@ -31,7 +31,7 @@ void user_main(void) {
         static uint32_t last = 0;
         if (millis() - last > 1000) {
             last = millis();
-            // USB_Serial_Printf("Ping\r\n");
+            USB_Serial_Printf("Ping\r\n");
         }
     }
 }

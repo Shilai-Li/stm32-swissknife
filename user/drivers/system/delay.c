@@ -55,6 +55,7 @@ uint32_t millis(void)
  */
 void Delay_us(uint32_t us)
 {
+    if (cpu_freq_mhz == 0) Delay_Init();
     uint32_t start_cycles = DWT->CYCCNT;
     uint32_t target_cycles = us * cpu_freq_mhz;
 
