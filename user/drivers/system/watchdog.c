@@ -5,8 +5,6 @@
 
 #include "watchdog.h"
 
-#include "watchdog.h"
-
 #ifdef HAL_IWDG_MODULE_ENABLED
 
 /* Global Handle */

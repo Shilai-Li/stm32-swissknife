@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "potentiometer" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "watchdog" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -371,14 +371,32 @@ if (NOT DEFINED ENABLED_MODULES)
     set(ENABLED_MODULES "")
     set(TEST_SRC "")
 
-    if (TEST_CASE STREQUAL "led")
+    # components
+    if (TEST_CASE STREQUAL "shell")
+        list(APPEND ENABLED_MODULES letter_shell)
+        set(TEST_SRC components/tests/letter-shell_tests.c)
+    elseif (TEST_CASE STREQUAL "freertos")
+        # NOTE: If CubeMX provides FreeRTOS, don't include freertos_os here!
+        list(APPEND ENABLED_MODULES freertos_os led uart) 
+        set(TEST_SRC components/tests/freertos_tests.c)
+
+
+    # drivers
+    # communication
+
+    # display
+
+    # encoder
+
+    # io
+    elseif (TEST_CASE STREQUAL "led")
         list(APPEND ENABLED_MODULES led)
         set(TEST_SRC drivers/tests/led_tests.c)
 
     elseif (TEST_CASE STREQUAL "buzzer")
         list(APPEND ENABLED_MODULES buzzer uart)
         set(TEST_SRC drivers/tests/buzzer_tests.c)
-
+    # motor
     elseif (TEST_CASE STREQUAL "bldc_motor_esc_encoder")
         list(APPEND ENABLED_MODULES bldc_motor_esc_encoder uart delay)
         set(TEST_SRC drivers/tests/bldc_motor_esc_encoder_tests.c)
@@ -390,7 +408,7 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "stepper_motor")
         list(APPEND ENABLED_MODULES stepper_motor uart delay)
         set(TEST_SRC drivers/tests/stepper_motor_tests.c)
-
+    # sensor
     elseif (TEST_CASE STREQUAL "bh1750")
         list(APPEND ENABLED_MODULES bh1750 uart delay)
         set(TEST_SRC drivers/tests/bh1750_tests.c)
@@ -419,14 +437,18 @@ if (NOT DEFINED ENABLED_MODULES)
         list(APPEND ENABLED_MODULES potentiometer uart delay)
         set(TEST_SRC drivers/tests/potentiometer_tests.c)
 
-    elseif (TEST_CASE STREQUAL "shell")
-        list(APPEND ENABLED_MODULES letter_shell)
-        set(TEST_SRC components/tests/letter-shell_tests.c)
-    
-    elseif (TEST_CASE STREQUAL "freertos")
-        # NOTE: If CubeMX provides FreeRTOS, don't include freertos_os here!
-        list(APPEND ENABLED_MODULES freertos_os led uart) 
-        set(TEST_SRC components/tests/freertos_tests.c)
+    # storage
+
+    # system
+    elseif (TEST_CASE STREQUAL "delay")
+        list(APPEND ENABLED_MODULES delay uart)
+        set(TEST_SRC drivers/tests/delay_tests.c)
+    elseif (TEST_CASE STREQUAL "rtc")
+        list(APPEND ENABLED_MODULES rtc uart)
+        set(TEST_SRC drivers/tests/rtc_tests.c)
+    elseif (TEST_CASE STREQUAL "watchdog")
+        list(APPEND ENABLED_MODULES watchdog uart)
+        set(TEST_SRC drivers/tests/watchdog_tests.c)
 
     else()
         message(STATUS "TEST_CASE ${TEST_CASE} not migrated to new system yet.")

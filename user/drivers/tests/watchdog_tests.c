@@ -6,8 +6,6 @@
 
 #include "watchdog.h"
 #include "uart.h"
-#include "delay.h"
-#include "stm32f1xx_hal.h"
 
 void user_main(void) {
     UART_Init();

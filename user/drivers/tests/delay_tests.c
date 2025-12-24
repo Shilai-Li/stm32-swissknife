@@ -1,5 +1,6 @@
 #include "delay.h"
 #include "uart.h"
+#include <stdio.h>
 
 void user_main(void)
 {
