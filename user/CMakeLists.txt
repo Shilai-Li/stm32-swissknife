@@ -33,9 +33,123 @@ define_module(uart
     INCLUDES drivers/communication
 )
 
+
+
+define_module(can
+    SOURCES drivers/communication/can_driver.c
+    INCLUDES drivers/communication
+)
+
+define_module(esp8266
+    SOURCES drivers/communication/esp8266.c
+    INCLUDES drivers/communication
+    DEPENDS uart delay
+)
+
+define_module(ir_nec_exti
+    SOURCES drivers/communication/ir_nec_exti.c
+    INCLUDES drivers/communication
+    DEPENDS delay
+)
+
+define_module(ir_nec_tim
+    SOURCES drivers/communication/ir_nec_tim.c
+    INCLUDES drivers/communication
+    DEPENDS delay
+)
+
+define_module(nrf24l01
+    SOURCES drivers/communication/nrf24l01.c
+    INCLUDES drivers/communication
+    DEPENDS delay
+)
+
+define_module(rs485
+    SOURCES drivers/communication/rs485.c
+    INCLUDES drivers/communication
+    DEPENDS uart
+)
+
+define_module(usb_serial
+    SOURCES drivers/communication/usb_serial.c
+    INCLUDES drivers/communication
+)
+
+define_module(w5500
+    SOURCES drivers/communication/w5500.c
+    INCLUDES drivers/communication
+)
+
+# ==========================================
+# display
+# ==========================================
+
+define_module(ili9341
+    SOURCES drivers/display/ili9341.c
+    INCLUDES drivers/display
+)
+
+define_module(ili9488
+    SOURCES drivers/display/ili9488.c
+    INCLUDES drivers/display
+)
+
+define_module(ssd1306_afiskon
+    SOURCES 
+        drivers/display/afiskon-stm32-ssd1306/ssd1306.c
+        drivers/display/afiskon-stm32-ssd1306/ssd1306_fonts.c
+    INCLUDES 
+        drivers/display
+        drivers/display/afiskon-stm32-ssd1306
+    DEPENDS i2c_soft
+)
+
+define_module(ssd1306_custom
+    SOURCES 
+        drivers/display/ssd1306_custom.c
+        drivers/display/ssd1306_fonts_custom.c
+    INCLUDES drivers/display
+    DEPENDS i2c_soft
+)
+
+define_module(st7735
+    SOURCES drivers/display/st7735.c
+    INCLUDES drivers/display
+)
+
+define_module(st7789
+    SOURCES drivers/display/st7789.c
+    INCLUDES drivers/display
+)
+
+# ==========================================
+# encoder
+# ==========================================
+
+define_module(encoder_knob
+    SOURCES drivers/encoder/encoder_knob.c
+    INCLUDES drivers/encoder
+)
+
+define_module(encoder_motor
+    SOURCES drivers/encoder/encoder_motor.c
+    INCLUDES drivers/encoder
+)
+
+# ==========================================
+# interface
+# ==========================================
+
 define_module(i2c_soft
     SOURCES drivers/interface/soft_i2c.c
     INCLUDES drivers/interface
+    DEPENDS delay
+)
+
+define_module(spi_soft
+    SOURCES drivers/interface/soft_spi.c
+    INCLUDES drivers/interface
+    DEPENDS delay
 )
 
 # ==========================================
@@ -106,6 +220,33 @@ define_module(bh1750
     SOURCES drivers/sensor/light_sensor.c
     INCLUDES drivers/sensor
     DEPENDS i2c_soft
+)
+
+# ==========================================
+# storage
+# ==========================================
+
+define_module(at24cxx
+    SOURCES drivers/storage/at24cxx.c
+    INCLUDES drivers/storage
+    DEPENDS delay i2c_soft
+)
+
+define_module(internal_flash
+    SOURCES drivers/storage/internal_flash.c
+    INCLUDES drivers/storage
+)
+
+define_module(sd_card_spi
+    SOURCES drivers/storage/sd_card_spi.c
+    INCLUDES drivers/storage
+    DEPENDS delay
+)
+
+define_module(w25qxx
+    SOURCES drivers/storage/w25qxx.c
+    INCLUDES drivers/storage
+    DEPENDS delay
 )
 
 # ==========================================

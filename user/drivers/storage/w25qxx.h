@@ -27,7 +27,7 @@
 
 // Check if HAL SPI is included, otherwise include it manually (adjust for your specific MCU series)
 #ifndef __STM32F1xx_HAL_SPI_H
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #endif
 
 /* W25Qxx Commands */

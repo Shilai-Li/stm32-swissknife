@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #include <stdbool.h>
 #include "middlewares/algorithms/moving_average.h"
 

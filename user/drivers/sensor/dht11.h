@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#include "stm32f1xx_hal.h"
+#include "main.h"
 
 /* ============================================================
  * Type Definitions

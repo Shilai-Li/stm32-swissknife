@@ -29,7 +29,7 @@
 extern "C" {
 #endif
 
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #include <stdbool.h>
 
 // NRF24L01 Register Definition
