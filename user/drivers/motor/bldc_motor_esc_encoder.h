@@ -20,7 +20,7 @@
 #ifndef MOTOR_DRIVER_H
 #define MOTOR_DRIVER_H
 
-#include "stm32f1xx_hal.h" // Include the corresponding HAL library for your chip model
+#include "main.h"
 
 // Define motor structure for managing pins and timers
 typedef struct {

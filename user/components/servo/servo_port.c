@@ -1,4 +1,4 @@
-#include "../servo_port.h"
+#include "servo_port.h"
 #include "tim.h"
 #include "uart.h"
 #include "delay.h"

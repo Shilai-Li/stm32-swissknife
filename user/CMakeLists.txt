@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "buzzer" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "bldc_motor_esc_encoder" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -23,14 +23,10 @@ macro(define_module name)
     set_target_properties(${name} PROPERTIES MODULE_DEPENDS "${ARG_DEPENDS}")
 endmacro()
 
-# ==========================================
-# 1. System Drivers (Base)
-# ==========================================
 
-define_module(delay 
-    SOURCES drivers/system/delay.c
-    INCLUDES drivers/system
-)
+# ==========================================
+# communication
+# ==========================================
 
 define_module(uart
     SOURCES drivers/communication/uart.c
@@ -43,7 +39,7 @@ define_module(i2c_soft
 )
 
 # ==========================================
-# 2. io
+# io
 # ==========================================
 
 define_module(buzzer
@@ -72,7 +68,26 @@ define_module(xpt2046
 )
 
 # ==========================================
-# 3. Sensor Drivers
+# motor
+# ==========================================
+
+define_module(bldc_motor_esc_encoder
+    SOURCES drivers/motor/bldc_motor_esc_encoder.c
+    INCLUDES drivers/motor
+)
+
+define_module(servo_motor
+    SOURCES drivers/motor/servo_motor.c
+    INCLUDES drivers/motor
+)
+
+define_module(stepper_motor
+    SOURCES drivers/motor/stepper_motor.c
+    INCLUDES drivers/motor
+)
+
+# ==========================================
+# sensor
 # ==========================================
 
 define_module(dht11
@@ -91,6 +106,25 @@ define_module(bh1750
     SOURCES drivers/sensor/light_sensor.c
     INCLUDES drivers/sensor
     DEPENDS i2c_soft
+)
+
+# ==========================================
+# system
+# ==========================================
+
+define_module(delay
+    SOURCES drivers/system/delay.c
+    INCLUDES drivers/system
+)
+
+define_module(rtc
+    SOURCES drivers/system/rtc_driver.c
+    INCLUDES drivers/system
+)
+
+define_module(watchdog
+    SOURCES drivers/system/watchdog.c
+    INCLUDES drivers/system
 )
 
 # ==========================================
@@ -154,6 +188,18 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "buzzer")
         list(APPEND ENABLED_MODULES buzzer uart)
         set(TEST_SRC drivers/tests/buzzer_tests.c)
+
+    elseif (TEST_CASE STREQUAL "bldc_motor_esc_encoder")
+        list(APPEND ENABLED_MODULES bldc_motor_esc_encoder uart delay)
+        set(TEST_SRC drivers/tests/bldc_motor_esc_encoder_tests.c)
+
+    elseif (TEST_CASE STREQUAL "servo_motor")
+        list(APPEND ENABLED_MODULES servo_motor uart)
+        set(TEST_SRC drivers/tests/servo_motor_tests.c)
+
+    elseif (TEST_CASE STREQUAL "stepper_motor")
+        list(APPEND ENABLED_MODULES stepper_motor uart)
+        set(TEST_SRC drivers/tests/stepper_motor_tests.c)
 
     elseif (TEST_CASE STREQUAL "dht11")
         list(APPEND ENABLED_MODULES dht11 uart) # UART for printing
