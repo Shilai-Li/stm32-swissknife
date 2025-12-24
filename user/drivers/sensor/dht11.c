@@ -1,7 +1,7 @@
 #include "dht11.h"
 
 #include "tim.h"
-#include "uart.h"
+//#include "uart.h"
 #include "delay.h"
 
 /* Internal variables to store GPIO and Pin information */

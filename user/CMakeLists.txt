@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "bldc_motor_esc_encoder" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "dht11" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -21,8 +21,42 @@ macro(define_module name)
 
     # Store dependencies in a custom property to be resolved later
     set_target_properties(${name} PROPERTIES MODULE_DEPENDS "${ARG_DEPENDS}")
+    
+    # 记录该模块名到全局列表 ALL_USER_MODULES，以便后续统一处理链接
+    set_property(GLOBAL APPEND PROPERTY ALL_USER_MODULES ${name})
 endmacro()
 
+# components
+
+define_module(letter_shell
+    SOURCES 
+        components/letter-shell/csrc/shell.c 
+        components/letter-shell/csrc/shell_ext.c
+        components/letter-shell/letter-shell_port.c
+    INCLUDES 
+        components/letter-shell
+        components/letter-shell/csrc
+    DEPENDS uart
+)
+
+define_module(freertos_os
+    SOURCES
+        components/freertos/csrc/tasks.c
+        components/freertos/csrc/queue.c
+        components/freertos/csrc/list.c
+        components/freertos/csrc/timers.c
+        components/freertos/csrc/event_groups.c
+        components/freertos/csrc/stream_buffer.c
+        components/freertos/csrc/portable/GCC/ARM_CM3/port.c
+        components/freertos/csrc/portable/MemMang/heap_4.c
+        components/freertos/freertos_port.c
+    INCLUDES
+        components/freertos
+        components/freertos/csrc/include
+        components/freertos/csrc/portable/GCC/ARM_CM3
+)
+
+# drivers
 
 # ==========================================
 # communication
@@ -269,52 +303,25 @@ define_module(watchdog
 )
 
 # ==========================================
-# 4. Display Drivers
+# 6. Deferred Linking (Connect modules regardless of definition order)
 # ==========================================
-
-define_module(ssd1306
-    SOURCES 
-        drivers/display/afiskon-stm32-ssd1306/ssd1306.c
-        drivers/display/afiskon-stm32-ssd1306/ssd1306_fonts.c
-    INCLUDES 
-        drivers/display/afiskon-stm32-ssd1306
-    DEPENDS i2c_soft
-)
-
-# ==========================================
-# 5. Components
-# ==========================================
-
-define_module(letter_shell
-    SOURCES 
-        components/letter-shell/csrc/shell.c 
-        components/letter-shell/csrc/shell_ext.c
-        components/letter-shell/letter-shell_port.c
-    INCLUDES 
-        components/letter-shell
-        components/letter-shell/csrc
-    DEPENDS uart
-)
-
-define_module(freertos_os
-    SOURCES
-        components/freertos/csrc/tasks.c
-        components/freertos/csrc/queue.c
-        components/freertos/csrc/list.c
-        components/freertos/csrc/timers.c
-        components/freertos/csrc/event_groups.c
-        components/freertos/csrc/stream_buffer.c
-        components/freertos/csrc/portable/GCC/ARM_CM3/port.c
-        components/freertos/csrc/portable/MemMang/heap_4.c
-        components/freertos/freertos_port.c
-    INCLUDES
-        components/freertos
-        components/freertos/csrc/include
-        components/freertos/csrc/portable/GCC/ARM_CM3
-)
+get_property(all_modules GLOBAL PROPERTY ALL_USER_MODULES)
+foreach(mod ${all_modules})
+    get_target_property(deps ${mod} MODULE_DEPENDS)
+    if(deps)
+        foreach(dep ${deps})
+            if(TARGET ${dep})
+                # 现在所有 Target 都一定已经定义了，可以安全 Link
+                target_link_libraries(${mod} PRIVATE ${dep})
+            else()
+                message(WARNING "Module ${mod} depends on ${dep}, but ${dep} is not defined!")
+            endif()
+        endforeach()
+    endif()
+endforeach()
 
 # ==========================================
-# 6. Dependency Resolution Logic
+# 7. Dependency Resolution Logic
 # ==========================================
 
 # If ENABLED_MODULES is not set by parent project, determine it from TEST_CASE
@@ -339,12 +346,12 @@ if (NOT DEFINED ENABLED_MODULES)
         set(TEST_SRC drivers/tests/servo_motor_tests.c)
 
     elseif (TEST_CASE STREQUAL "stepper_motor")
-        list(APPEND ENABLED_MODULES stepper_motor uart)
+        list(APPEND ENABLED_MODULES stepper_motor uart delay)
         set(TEST_SRC drivers/tests/stepper_motor_tests.c)
 
     elseif (TEST_CASE STREQUAL "dht11")
-        list(APPEND ENABLED_MODULES dht11 uart) # UART for printing
-        set(TEST_SRC drivers/tests/dht11_test.c)
+        list(APPEND ENABLED_MODULES delay dht11 uart) # UART for printing
+        set(TEST_SRC drivers/tests/dht11_tests.c)
 
     elseif (TEST_CASE STREQUAL "mpu6050")
         list(APPEND ENABLED_MODULES mpu6050 uart)
