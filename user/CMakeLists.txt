@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "dht11" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "bh1750" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -22,7 +22,6 @@ macro(define_module name)
     # Store dependencies in a custom property to be resolved later
     set_target_properties(${name} PROPERTIES MODULE_DEPENDS "${ARG_DEPENDS}")
     
-    # 记录该模块名到全局列表 ALL_USER_MODULES，以便后续统一处理链接
     set_property(GLOBAL APPEND PROPERTY ALL_USER_MODULES ${name})
 endmacro()
 
@@ -238,10 +237,33 @@ define_module(stepper_motor
 # sensor
 # ==========================================
 
+define_module(bh1750
+    SOURCES drivers/sensor/bh1750.c
+    INCLUDES drivers/sensor
+    DEPENDS i2c_soft delay
+)
+
 define_module(dht11
     SOURCES drivers/sensor/dht11.c
     INCLUDES drivers/sensor
     DEPENDS delay
+)
+
+define_module(ds18b20
+    SOURCES drivers/sensor/ds18b20.c
+    INCLUDES drivers/sensor
+    DEPENDS delay
+)
+
+define_module(hc_sr04
+    SOURCES drivers/sensor/hc_sr04.c
+    INCLUDES drivers/sensor
+    DEPENDS delay
+)
+
+define_module(light_sensor
+    SOURCES drivers/sensor/light_sensor.c
+    INCLUDES drivers/sensor
 )
 
 define_module(mpu6050
@@ -250,10 +272,9 @@ define_module(mpu6050
     DEPENDS i2c_soft
 )
 
-define_module(bh1750
-    SOURCES drivers/sensor/light_sensor.c
+define_module(potentiometer
+    SOURCES drivers/sensor/potentiometer.c
     INCLUDES drivers/sensor
-    DEPENDS i2c_soft
 )
 
 # ==========================================
@@ -349,13 +370,29 @@ if (NOT DEFINED ENABLED_MODULES)
         list(APPEND ENABLED_MODULES stepper_motor uart delay)
         set(TEST_SRC drivers/tests/stepper_motor_tests.c)
 
+    elseif (TEST_CASE STREQUAL "bh1750")
+        list(APPEND ENABLED_MODULES bh1750 uart delay)
+        set(TEST_SRC drivers/tests/bh1750_tests.c)
+
     elseif (TEST_CASE STREQUAL "dht11")
         list(APPEND ENABLED_MODULES delay dht11 uart) # UART for printing
         set(TEST_SRC drivers/tests/dht11_tests.c)
 
+    elseif (TEST_CASE STREQUAL "ds18b20")
+        list(APPEND ENABLED_MODULES ds18b20 uart delay)
+        set(TEST_SRC drivers/tests/ds18b20_tests.c)
+
+    elseif (TEST_CASE STREQUAL "hc_sr04")
+        list(APPEND ENABLED_MODULES hc_sr04 uart delay)
+        set(TEST_SRC drivers/tests/hc_sr04_tests.c)
+
     elseif (TEST_CASE STREQUAL "mpu6050")
-        list(APPEND ENABLED_MODULES mpu6050 uart)
+        list(APPEND ENABLED_MODULES mpu6050 uart delay)
         set(TEST_SRC drivers/tests/mpu6050_tests.c)
+
+    elseif (TEST_CASE STREQUAL "potentiometer")
+        list(APPEND ENABLED_MODULES potentiometer uart delay)
+        set(TEST_SRC drivers/tests/potentiometer_tests.c)
 
     elseif (TEST_CASE STREQUAL "shell")
         list(APPEND ENABLED_MODULES letter_shell)
