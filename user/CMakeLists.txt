@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "xpt2046" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "i2c_slave" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -371,8 +371,19 @@ if (NOT DEFINED ENABLED_MODULES)
     set(ENABLED_MODULES "")
     set(TEST_SRC "")
 
+    # applications
+    if (TEST_CASE STREQUAL "i2c_master")
+        list(APPEND ENABLED_MODULES uart)
+        set(TEST_SRC applications/i2c_master_slave.c)
+        target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEMO_ROLE=1) # 1 = MASTER
+        
+    elseif (TEST_CASE STREQUAL "i2c_slave")
+        list(APPEND ENABLED_MODULES uart)
+        set(TEST_SRC applications/i2c_master_slave.c)
+        target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEMO_ROLE=0) # 0 = SLAVE
+
     # components
-    if (TEST_CASE STREQUAL "shell")
+    elseif (TEST_CASE STREQUAL "shell")
         list(APPEND ENABLED_MODULES letter_shell)
         set(TEST_SRC components/tests/letter-shell_tests.c)
     elseif (TEST_CASE STREQUAL "freertos")
@@ -471,6 +482,8 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "watchdog")
         list(APPEND ENABLED_MODULES watchdog uart)
         set(TEST_SRC drivers/tests/watchdog_tests.c)
+
+
 
     else()
         message(STATUS "TEST_CASE ${TEST_CASE} not migrated to new system yet.")
