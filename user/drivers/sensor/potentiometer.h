@@ -13,7 +13,7 @@ extern "C" {
 
 #include "main.h"
 #include <stdbool.h>
-#include "middlewares/algorithms/moving_average.h"
+#include "moving_average.h"
 
 typedef struct {
     ADC_HandleTypeDef *hadc;

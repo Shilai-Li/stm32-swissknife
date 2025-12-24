@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "mpu6050" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "potentiometer" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -276,6 +276,7 @@ define_module(mpu6050
 define_module(potentiometer
     SOURCES drivers/sensor/potentiometer.c
     INCLUDES drivers/sensor
+    DEPENDS moving_average
 )
 
 # ==========================================
