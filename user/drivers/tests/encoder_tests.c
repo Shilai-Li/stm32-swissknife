@@ -21,7 +21,7 @@ extern TIM_HandleTypeDef htim3; // Trying TIM3 for Motor
 Encoder_Knob_HandleTypeDef hknob;
 Encoder_Motor_HandleTypeDef hmotor;
 
-void User_Entry(void)
+void user_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- Encoder Test Start ---\r\n");

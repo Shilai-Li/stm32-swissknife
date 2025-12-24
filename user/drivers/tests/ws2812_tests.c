@@ -32,7 +32,7 @@ WS2812_HandleTypeDef hws;
 // If main.c doesn't call us, Busy flag will never clear.
 // WARN: User must hook `WS2812_DmaCallback(&hws)` in `HAL_TIM_PWM_PulseFinishedCallback`.
 
-void User_Entry(void)
+void user_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- WS2812 Test Start ---\r\n");

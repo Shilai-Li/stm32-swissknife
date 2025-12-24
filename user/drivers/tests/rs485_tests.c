@@ -17,7 +17,7 @@
 
 RS485_HandleTypeDef hrs485_dev;
 
-void User_Entry(void)
+void user_main(void)
 {
     // Initialize Debug UART (UART1 usually)
     UART_Init();

@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "bh1750" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "mpu6050" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -264,6 +264,7 @@ define_module(hc_sr04
 define_module(light_sensor
     SOURCES drivers/sensor/light_sensor.c
     INCLUDES drivers/sensor
+    DEPENDS moving_average
 )
 
 define_module(mpu6050
@@ -321,6 +322,25 @@ define_module(rtc
 define_module(watchdog
     SOURCES drivers/system/watchdog.c
     INCLUDES drivers/system
+)
+
+# middlewares
+
+# algorithms
+define_module(moving_average
+    SOURCES middlewares/algorithms/moving_average.c
+    INCLUDES middlewares/algorithms
+)
+
+define_module(pid
+    SOURCES middlewares/algorithms/pid.c
+    INCLUDES middlewares/algorithms
+)
+
+# protocols
+define_module(crsf
+    SOURCES middlewares/protocols/crsf.c
+    INCLUDES middlewares/protocols
 )
 
 # ==========================================
@@ -385,6 +405,10 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "hc_sr04")
         list(APPEND ENABLED_MODULES hc_sr04 uart delay)
         set(TEST_SRC drivers/tests/hc_sr04_tests.c)
+
+    elseif (TEST_CASE STREQUAL "light_sensor")
+        list(APPEND ENABLED_MODULES light_sensor uart delay)
+        set(TEST_SRC drivers/tests/light_sensor_tests.c)
 
     elseif (TEST_CASE STREQUAL "mpu6050")
         list(APPEND ENABLED_MODULES mpu6050 uart delay)

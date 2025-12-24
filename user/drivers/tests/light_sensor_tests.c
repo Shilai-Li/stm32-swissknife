@@ -10,7 +10,7 @@
 
 extern ADC_HandleTypeDef hadc1; // Assume ADC1 used
 
-void Test_LightSensor_Entry(void) {
+void user_main(void) {
     UART_Init();
     UART_Debug_Printf("\r\n=== Light Sensor Test Start ===\r\n");
 

@@ -23,7 +23,7 @@ CAN_Driver_HandleTypeDef hcan_drv;
 // BUT the driver is designed for Interrupts.
 // To make it run standalone here without IT glue, we can manually call polling.
 
-void User_Entry(void)
+void user_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- CAN Driver Test Start ---\r\n");

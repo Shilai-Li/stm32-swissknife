@@ -1,6 +1,6 @@
 #include "key.h"
 
-void User_Entry(void)
+void user_main(void)
 {
     single_key_test();
 

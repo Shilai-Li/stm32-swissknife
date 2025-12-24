@@ -12,7 +12,7 @@
 #define DS_PORT GPIOA
 #define DS_PIN  GPIO_PIN_1
 
-void Test_DS18B20_Entry(void) {
+void user_main(void) {
     UART_Init();
     // Delay Init is implicit usually via global init, but ensure it works.
     

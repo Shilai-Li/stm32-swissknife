@@ -9,7 +9,7 @@
 #include "delay.h"
 #include "stm32f1xx_hal.h"
 
-void Test_Watchdog_Entry(void) {
+void user_main(void) {
     UART_Init();
     
     if (Watchdog_WasResetByDog()) {

@@ -13,7 +13,7 @@
 
 ADC_Filter_HandleTypeDef hadc_filter;
 
-void User_Entry(void)
+void user_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- ADC Filter Test Start ---\r\n");

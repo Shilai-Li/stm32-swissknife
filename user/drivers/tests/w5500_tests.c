@@ -35,7 +35,7 @@ extern SPI_HandleTypeDef hspi1;
  * ======================================================================== */
 #if TEST_LINK_CHECK
 
-void User_Entry(void) {
+void user_main(void) {
     HAL_Delay(100);
     
     PRINT("\r\n\r\n");

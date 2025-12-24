@@ -8,7 +8,7 @@
 #include "delay.h" // For delay
 #include <stdio.h>
 
-void Test_RTC_Entry(void) {
+void user_main(void) {
     UART_Init();
     UART_Debug_Printf("\r\n=== RTC Test Start ===\r\n");
     

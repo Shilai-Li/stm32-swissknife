@@ -1,6 +1,6 @@
 #include "ssd1306_custom.h"
 
-void User_Entry(void)
+void user_main(void)
 {
     while (1)
     {

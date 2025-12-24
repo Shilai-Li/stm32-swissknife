@@ -7,7 +7,7 @@
 #include "usb_serial.h"
 #include "delay.h"
 
-void Test_USB_Serial_Entry(void) {
+void user_main(void) {
     // Note: USB Init is handled by MX_USB_DEVICE_Init() in main.c
     // We just init our soft buffer
     USB_Serial_Init();

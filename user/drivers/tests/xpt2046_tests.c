@@ -27,7 +27,7 @@ extern SPI_HandleTypeDef hspi2; // Use SPI2 for Touch (often shared with LCD or 
 
 XPT2046_HandleTypeDef htouch;
 
-void User_Entry(void)
+void user_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- XPT2046 Touch Test ---\r\n");
