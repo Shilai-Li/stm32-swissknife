@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "watchdog" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "w25qxx" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # ==========================================
@@ -438,6 +438,22 @@ if (NOT DEFINED ENABLED_MODULES)
         set(TEST_SRC drivers/tests/potentiometer_tests.c)
 
     # storage
+    elseif (TEST_CASE STREQUAL "at24cxx")
+        list(APPEND ENABLED_MODULES at24cxx uart delay)
+        set(TEST_SRC drivers/tests/at24cxx_tests.c)
+
+    elseif (TEST_CASE STREQUAL "internal_flash")
+        list(APPEND ENABLED_MODULES internal_flash uart)
+        set(TEST_SRC drivers/tests/internal_flash_tests.c)
+
+    elseif (TEST_CASE STREQUAL "sd_card_spi")
+        list(APPEND ENABLED_MODULES sd_card_spi uart delay)
+        set(TEST_SRC drivers/tests/sd_card_spi_tests.c)
+
+    elseif (TEST_CASE STREQUAL "w25qxx")
+        list(APPEND ENABLED_MODULES w25qxx uart delay)
+        set(TEST_SRC drivers/tests/w25qxx_tests.c)
+
 
     # system
     elseif (TEST_CASE STREQUAL "delay")
