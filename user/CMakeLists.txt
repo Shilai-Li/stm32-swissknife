@@ -1,6 +1,8 @@
 ﻿# Test Case Selection
-set(TEST_CASE "freertos_test" CACHE STRING "Select which test to run" FORCE)
-message("Selected Tesusb_serialt Case: ${TEST_CASE}")
+if (NOT DEFINED TEST_CASE)
+    set(TEST_CASE "freertos_test" CACHE STRING "Select which test to run")
+endif()
+message("User Module - Current Test Case: ${TEST_CASE}")
 
 # ==========================================
 # 0. Helper Macros

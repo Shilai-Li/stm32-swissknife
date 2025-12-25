@@ -37,6 +37,10 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+# Test Case Selection
+set(TEST_CASE "i2c_slave" CACHE STRING "Select which test to run" FORCE)
+message("Selected Test Case: ${TEST_CASE}")
+
 # Add user defined directory
 add_subdirectory(../../user user)
 
