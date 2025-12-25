@@ -1,5 +1,5 @@
 ﻿# Test Case Selection
-set(TEST_CASE "i2c_slave" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "freertos_test" CACHE STRING "Select which test to run" FORCE)
 message("Selected Tesusb_serialt Case: ${TEST_CASE}")
 
 # ==========================================
@@ -25,6 +25,9 @@ macro(define_module name)
     set_property(GLOBAL APPEND PROPERTY ALL_USER_MODULES ${name})
 endmacro()
 
+# applications
+
+
 # components
 
 define_module(letter_shell
@@ -36,23 +39,6 @@ define_module(letter_shell
         components/letter-shell
         components/letter-shell/csrc
     DEPENDS uart
-)
-
-define_module(freertos_os
-    SOURCES
-        components/freertos/csrc/tasks.c
-        components/freertos/csrc/queue.c
-        components/freertos/csrc/list.c
-        components/freertos/csrc/timers.c
-        components/freertos/csrc/event_groups.c
-        components/freertos/csrc/stream_buffer.c
-        components/freertos/csrc/portable/GCC/ARM_CM3/port.c
-        components/freertos/csrc/portable/MemMang/heap_4.c
-        components/freertos/freertos_port.c
-    INCLUDES
-        components/freertos
-        components/freertos/csrc/include
-        components/freertos/csrc/portable/GCC/ARM_CM3
 )
 
 # drivers
@@ -370,7 +356,11 @@ if (NOT DEFINED ENABLED_MODULES)
     set(TEST_SRC "")
 
     # applications
-    if (TEST_CASE STREQUAL "i2c_master")
+    if (TEST_CASE STREQUAL "freertos_test")
+        list(APPEND ENABLED_MODULES led uart) 
+        set(TEST_SRC applications/freertos_test.c)
+        
+    elseif (TEST_CASE STREQUAL "i2c_master")
         list(APPEND ENABLED_MODULES uart)
         set(TEST_SRC applications/i2c_master_slave.c)
         target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEMO_ROLE=1) # 1 = MASTER
@@ -384,17 +374,14 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "shell")
         list(APPEND ENABLED_MODULES letter_shell)
         set(TEST_SRC components/tests/letter-shell_tests.c)
-    elseif (TEST_CASE STREQUAL "freertos")
-        # NOTE: If CubeMX provides FreeRTOS, don't include freertos_os here!
-        list(APPEND ENABLED_MODULES freertos_os led uart) 
-        set(TEST_SRC components/tests/freertos_tests.c)
-
+  
 
     # drivers
     # communication
     elseif (TEST_CASE STREQUAL "uart")
         list(APPEND ENABLED_MODULES uart)
         set(TEST_SRC drivers/tests/uart_tests.c)
+
     elseif (TEST_CASE STREQUAL "usb_serial")
         list(APPEND ENABLED_MODULES usb_serial delay)
         set(TEST_SRC drivers/tests/usb_serial_tests.c)
