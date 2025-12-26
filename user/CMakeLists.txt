@@ -365,16 +365,21 @@ if (NOT DEFINED ENABLED_MODULES)
     # applications
     if (TEST_CASE STREQUAL "freertos_tests")
         list(APPEND ENABLED_MODULES led uart usb_cdc) 
-        set(TEST_SRC applications/freertos_tests.c)
+        set(TEST_SRC 
+            applications/freertos_producer_consumer/app_main.c
+            applications/freertos_producer_consumer/producer_task.c
+            applications/freertos_producer_consumer/consumer_task.c
+        )
+        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE applications/freertos_producer_consumer)
         
     elseif (TEST_CASE STREQUAL "i2c_master")
         list(APPEND ENABLED_MODULES uart)
-        set(TEST_SRC applications/i2c_master_slave.c)
+        set(TEST_SRC applications/i2c_master_slave/i2c_master_slave.c)
         target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEMO_ROLE=1) # 1 = MASTER
         
     elseif (TEST_CASE STREQUAL "i2c_slave")
         list(APPEND ENABLED_MODULES uart)
-        set(TEST_SRC applications/i2c_master_slave.c)
+        set(TEST_SRC applications/i2c_master_slave/i2c_master_slave.c)
         target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEMO_ROLE=0) # 0 = SLAVE
 
     # components
