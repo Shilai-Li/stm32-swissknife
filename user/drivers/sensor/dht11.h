@@ -1,22 +1,6 @@
 /**
  * @file dht11.h
- * @brief DHT11 Temperature & Humidity Sensor Driver
- * 
- * =================================================================================
- *                       >>> INTEGRATION GUIDE <<<
- * =================================================================================
- * 1. CubeMX Config (System Core -> GPIO):
- *    - Select a Pin (e.g., PA1).
- *    - Mode: Output Open Drain (Preferred) or Push-Pull.
- *    - Speed: Low/Medium.
- *    - Label: (Optional) DHT11_PIN
- * 
- * 2. Note:
- *    - This driver manages pin direction (Input/Output) switching on the fly
- *      if using Push-Pull.
- *    - Requires 'delay.h' for microsecond delays.
- *    - Connect 4.7k - 10k Pull-up resistor between VCC and Data if using Open Drain.
- * =================================================================================
+ * @brief DHT11 Temperature & Humidity Sensor Driver (Enhanced)
  */
 #ifndef DHT11_H
 #define DHT11_H
@@ -26,6 +10,7 @@ extern "C" {
 #endif
 
 #include "main.h"
+#include <stdbool.h>
 
 /* ============================================================
  * Type Definitions
@@ -34,33 +19,53 @@ extern "C" {
 /* DHT11 status return type */
 typedef enum {
     DHT11_OK = 0,
-    DHT11_ERROR,
-    DHT11_TIMEOUT
+    DHT11_ERROR_CHECKSUM,
+    DHT11_ERROR_TIMEOUT,
+    DHT11_ERROR_GPIO
 } DHT11_Status;
 
-/* DHT11 data structure */
-typedef struct {
-    uint8_t humidity_int;    /* Integer part of humidity */
-    uint8_t humidity_dec;    /* Decimal part of humidity (always 0 for DHT11) */
-    uint8_t temp_int;        /* Integer part of temperature */
-    uint8_t temp_dec;        /* Decimal part of temperature (always 0 for DHT11) */
-} DHT11_Data;
+/* Forward struct declaration */
+struct DHT11_Handle_s;
 
-/* ============================================================
- * Public API Functions
- * ============================================================ */
+/* DHT11 Data and Handle structure */
+typedef struct DHT11_Handle_s {
+    /* Configuration */
+    GPIO_TypeDef *port;
+    uint16_t pin;
+    
+    /* Data */
+    uint8_t humidity_int;
+    uint8_t humidity_dec;
+    uint8_t temp_int;
+    uint8_t temp_dec;
+
+    /* Statistics (Robustness) */
+    volatile uint32_t error_cnt;
+    volatile uint32_t timeout_cnt;
+    volatile uint32_t checksum_error_cnt;
+    volatile uint32_t successful_read_cnt;
+    
+    /* Callback */
+    void (*error_cb)(struct DHT11_Handle_s *dev); 
+} DHT11_Handle_t;
+
+/* Public API Functions */
 
 /**
- * @brief  Initialize the DHT11 sensor (configure GPIO).
- * @param  GPIOx: GPIO port where DHT11 is connected.
- * @param  GPIO_Pin: GPIO pin number (HAL format).
+ * @brief  Initialize the DHT11 sensor handle.
+ * @param  dev: Pointer to the DHT11 handle.
+ * @param  port: GPIO port.
+ * @param  pin: GPIO pin.
  * @retval None
  */
-void DHT11_Init(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
-DHT11_Status DHT11_Read(DHT11_Data *data);
+void DHT11_Init(DHT11_Handle_t *dev, GPIO_TypeDef *port, uint16_t pin);
+
+void DHT11_SetErrorCallback(DHT11_Handle_t *dev, void (*cb)(DHT11_Handle_t *));
+DHT11_Status DHT11_Read(DHT11_Handle_t *dev);
+uint32_t DHT11_GetErrorCount(DHT11_Handle_t *dev);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* DHT11_H */

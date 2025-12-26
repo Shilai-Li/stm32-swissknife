@@ -14,7 +14,7 @@ void bh1750_error_callback(BH1750_Handle_t *dev) {
     UART_SendString(UART_CH, msg);
 }
 
-void bh1750_tests_main(void) {
+void app_main(void) {
     UART_SendString(UART_CH, "\r\n===== BH1750 Light Sensor Test =====\r\n");
     
     Soft_I2C_Init(&i2c, GPIOB, GPIO_PIN_6, GPIOB, GPIO_PIN_7);
