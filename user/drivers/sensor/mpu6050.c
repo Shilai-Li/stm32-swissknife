@@ -14,6 +14,16 @@
 #define MPU6050_PWR1_DEVICE_RESET   0x80U
 #define MPU6050_PWR1_SLEEP          0x40U
 
+static void MPU6050_HandleError(MPU6050_Handle_t *dev) {
+    if (dev) {
+        dev->error_cnt++;
+        dev->i2c_error_cnt++;
+        if (dev->error_cb) {
+            dev->error_cb(dev);
+        }
+    }
+}
+
 static uint16_t mpu6050_addr8(uint8_t addr_7bit)
 {
     return (uint16_t)(addr_7bit << 1);
@@ -22,13 +32,21 @@ static uint16_t mpu6050_addr8(uint8_t addr_7bit)
 static HAL_StatusTypeDef mpu6050_write_u8(MPU6050_Handle_t *dev, uint8_t reg, uint8_t val)
 {
     if (dev == NULL || dev->hi2c == NULL) return HAL_ERROR;
-    return HAL_I2C_Mem_Write(dev->hi2c, mpu6050_addr8(dev->addr_7bit), reg, I2C_MEMADD_SIZE_8BIT, &val, 1, dev->timeout_ms);
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(dev->hi2c, mpu6050_addr8(dev->addr_7bit), reg, I2C_MEMADD_SIZE_8BIT, &val, 1, dev->timeout_ms);
+    if (status != HAL_OK) {
+        MPU6050_HandleError(dev);
+    }
+    return status;
 }
 
 static HAL_StatusTypeDef mpu6050_read(MPU6050_Handle_t *dev, uint8_t reg, uint8_t *buf, uint16_t len)
 {
     if (dev == NULL || dev->hi2c == NULL || buf == NULL || len == 0) return HAL_ERROR;
-    return HAL_I2C_Mem_Read(dev->hi2c, mpu6050_addr8(dev->addr_7bit), reg, I2C_MEMADD_SIZE_8BIT, buf, len, dev->timeout_ms);
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(dev->hi2c, mpu6050_addr8(dev->addr_7bit), reg, I2C_MEMADD_SIZE_8BIT, buf, len, dev->timeout_ms);
+    if (status != HAL_OK) {
+        MPU6050_HandleError(dev);
+    }
+    return status;
 }
 
 static HAL_StatusTypeDef mpu6050_update_bits(MPU6050_Handle_t *dev, uint8_t reg, uint8_t mask, uint8_t value)
@@ -70,6 +88,13 @@ HAL_StatusTypeDef MPU6050_SetTimeout(MPU6050_Handle_t *dev, uint32_t timeout_ms)
     return HAL_OK;
 }
 
+void MPU6050_SetErrorCallback(MPU6050_Handle_t *dev, MPU6050_ErrorCallback cb)
+{
+    if (dev) {
+        dev->error_cb = cb;
+    }
+}
+
 HAL_StatusTypeDef MPU6050_Init(MPU6050_Handle_t *dev, I2C_HandleTypeDef *hi2c, uint8_t addr_7bit)
 {
     if (dev == NULL || hi2c == NULL) return HAL_ERROR;
@@ -78,6 +103,11 @@ HAL_StatusTypeDef MPU6050_Init(MPU6050_Handle_t *dev, I2C_HandleTypeDef *hi2c, u
     dev->hi2c = hi2c;
     dev->addr_7bit = addr_7bit;
     dev->timeout_ms = 100;
+    
+    dev->error_cnt = 0;
+    dev->i2c_error_cnt = 0;
+    dev->successful_read_cnt = 0;
+    dev->error_cb = NULL;
 
     dev->accel_range = MPU6050_ACCEL_RANGE_2G;
     dev->gyro_range = MPU6050_GYRO_RANGE_250DPS;
@@ -185,6 +215,8 @@ HAL_StatusTypeDef MPU6050_ReadRaw(MPU6050_Handle_t *dev, MPU6050_RawData_t *out)
     uint8_t buf[14];
     HAL_StatusTypeDef st = mpu6050_read(dev, MPU6050_REG_ACCEL_XOUT_H, buf, (uint16_t)sizeof(buf));
     if (st != HAL_OK) return st;
+    
+    dev->successful_read_cnt++;
 
     out->accel_x = (int16_t)((buf[0] << 8) | buf[1]);
     out->accel_y = (int16_t)((buf[2] << 8) | buf[3]);

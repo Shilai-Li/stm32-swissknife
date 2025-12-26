@@ -56,7 +56,11 @@ typedef struct {
     float gyro_z_dps;
 } MPU6050_Data_t;
 
-typedef struct {
+/* Forward declaration for callback */
+typedef struct MPU6050_Handle_s MPU6050_Handle_t;
+typedef void (*MPU6050_ErrorCallback)(MPU6050_Handle_t *dev);
+
+struct MPU6050_Handle_s {
     I2C_HandleTypeDef *hi2c;
     uint8_t addr_7bit;
     uint32_t timeout_ms;
@@ -64,7 +68,15 @@ typedef struct {
     MPU6050_GyroRange_t gyro_range;
     float accel_lsb_per_g;
     float gyro_lsb_per_dps;
-} MPU6050_Handle_t;
+    
+    /* Robustness Statistics */
+    volatile uint32_t error_cnt;
+    volatile uint32_t i2c_error_cnt;
+    volatile uint32_t successful_read_cnt;
+    
+    /* Callbacks */
+    MPU6050_ErrorCallback error_cb;
+};
 
 HAL_StatusTypeDef MPU6050_Init(MPU6050_Handle_t *dev, I2C_HandleTypeDef *hi2c, uint8_t addr_7bit);
 
