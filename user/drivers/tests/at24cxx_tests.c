@@ -26,7 +26,7 @@ extern I2C_HandleTypeDef hi2c1;
 
 static AT24CXX_HandleTypeDef hat24;
 
-void user_main(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- AT24Cxx EEPROM Test Start ---\r\n");

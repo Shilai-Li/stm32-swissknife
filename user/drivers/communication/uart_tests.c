@@ -16,7 +16,7 @@ void print_stats(void) {
     UART_Debug_Printf("-----------------------\r\n");
 }
 
-void user_main(void)
+void app_main(void)
 {
     // 1. Register Logic Channel 0 -> Hardware UART2
     UART_Register(CH_DEBUG, &huart2);

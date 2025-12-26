@@ -24,7 +24,7 @@ extern I2C_HandleTypeDef hi2c1;
 #define SLAVE_ADDR_HAL  (SLAVE_ADDR_7BIT << 1)
 #define TRANSFER_SIZE 32 // Fixed size for stable exchange
 
-void user_main(void)
+void app_main(void)
 {
     UART_Init();
     // Delay_Init(); 

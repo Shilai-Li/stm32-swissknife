@@ -41,7 +41,7 @@ uint8_t Soft_SPI_Wrapper(void *handle, uint8_t *tx, uint8_t *rx, uint16_t size, 
     return Soft_SPI_TransmitReceive((Soft_SPI_HandleTypeDef*)handle, tx, rx, size, timeout);
 }
 
-void user_main(void) {
+void app_main(void) {
     UART_Register(CH_DEBUG, &huart2);
     // UART_Init();
     

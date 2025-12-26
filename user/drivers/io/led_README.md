@@ -15,7 +15,7 @@ In your `user_main` or setup sequence:
 ```c
 #include "io/led.h"
 
-void user_main(void)
+void app_main(void)
 {
     // Register the Green LED (Nucleo LD2 is usually PA5, Active High)
     LED_Register(LED_1, GPIOA, GPIO_PIN_5, LED_ACTIVE_HIGH);

@@ -43,7 +43,7 @@ extern SPI_HandleTypeDef hspi1;
 
 static W25QXX_HandleTypeDef w25q;
 
-void user_main(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- W25Qxx Flash Test Start ---\r\n");

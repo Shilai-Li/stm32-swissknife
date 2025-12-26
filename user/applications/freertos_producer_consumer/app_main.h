@@ -1,5 +1,5 @@
-#ifndef APP_TASKS_H
-#define APP_TASKS_H
+#ifndef APP_MAIN_H
+#define APP_MAIN_H
 
 #include "usart.h"
 #include "FreeRTOS.h"
@@ -18,4 +18,4 @@ void LEDConsumerTask(void *pvParameters);
 // Common Helper
 void Log_String(const char *str);
 
-#endif // APP_TASKS_H
+#endif // APP_MAIN_H

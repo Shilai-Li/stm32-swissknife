@@ -26,7 +26,7 @@ static const uint32_t duration[] = {
     100
 };
 
-void user_main(void) {
+void app_main(void) {
     // Hardware Setup
     UART_Register(CH_DEBUG, &huart2);
     // UART_Init(); // Deprecated, use Register pattern if possible or rely on CubeMX Init

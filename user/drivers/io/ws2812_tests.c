@@ -19,7 +19,7 @@ WS2812_HandleTypeDef hws;
 extern TIM_HandleTypeDef htim3;
 // extern TIM_HandleTypeDef htim1; // F103 common
 
-void user_main(void)
+void app_main(void)
 {
     UART_Register(CH_DEBUG, &huart2);
     // UART_Init(); 

@@ -7,7 +7,7 @@
 #include "watchdog.h"
 #include "uart.h"
 
-void user_main(void) {
+void app_main(void) {
     UART_Init();
     
     if (Watchdog_WasResetByDog()) {

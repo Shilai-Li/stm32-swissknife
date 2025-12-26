@@ -29,7 +29,7 @@ extern TIM_HandleTypeDef htim1;
 
 Stepper_HandleTypeDef hStepper;
 
-void user_main(void)
+void app_main(void)
 {
     // Initialize Drivers
     UART_Init();

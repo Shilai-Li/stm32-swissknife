@@ -8,7 +8,7 @@
 #include "uart.h"
 #include <stdio.h>
 
-void user_main(void) {
+void app_main(void) {
     UART_Init();
     UART_Debug_Printf("\r\n=== IR Remote Test (EXTI Mode) ===\r\n");
     UART_Debug_Printf("Please press buttons on remote...\r\n");

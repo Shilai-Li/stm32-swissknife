@@ -10,7 +10,7 @@
 
 #define CH_DEBUG 2
 
-void user_main(void) {
+void app_main(void) {
     UART_Register(CH_DEBUG, &huart2);
     // UART_Init(); // Deprecated
     

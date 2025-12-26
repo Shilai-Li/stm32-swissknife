@@ -44,7 +44,7 @@ In your initialization code (e.g., `user_main` or after `MX_USARTx_UART_Init`):
 #include "uart.h"
 #include "usart.h" // Provides huart2, huart3
 
-void user_main(void) {
+void app_main(void) {
     // Inject hardware handles into logic channels
     // Ensure MX_USART2_UART_Init() and MX_DMA_Init() have been called!
     UART_Register(UART_DEBUG, &huart2);

@@ -2,7 +2,7 @@
 
 #include "main.h"
 
-void user_main(void)
+void app_main(void)
 {
     LED_Register(LED_1, GPIOB, GPIO_PIN_2, LED_ACTIVE_LOW);
 

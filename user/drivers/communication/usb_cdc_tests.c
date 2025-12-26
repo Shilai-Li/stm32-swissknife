@@ -1,7 +1,7 @@
 #include "usb_cdc.h"
 #include "main.h"
 
-void user_main(void)
+void app_main(void)
 {
     // 1. Initialize USB Buffer
     USB_CDC_Init();

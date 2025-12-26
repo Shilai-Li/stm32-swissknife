@@ -14,7 +14,7 @@
 Soft_I2C_HandleTypeDef hi2c;
 BH1750_Handle_t hLight;
 
-void user_main(void)
+void app_main(void)
 {
     // Initialize System Drivers
     UART_Init();

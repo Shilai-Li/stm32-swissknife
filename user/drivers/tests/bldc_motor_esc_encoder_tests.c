@@ -30,7 +30,7 @@ extern TIM_HandleTypeDef htim2;
 
 Motor_Handle_t hMotor;
 
-void user_main(void)
+void app_main(void)
 {
     // 1. Initialize System Drivers
     UART_Init();

@@ -55,7 +55,7 @@ extern SPI_HandleTypeDef hspi1;
 
 ST7789_HandleTypeDef hlcd;
 
-void user_main(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- ST7789 LCD Test Start ---\r\n");

@@ -31,7 +31,7 @@ extern SPI_HandleTypeDef hspi1;
 
 ILI9488_HandleTypeDef hili_huge;
 
-void user_main(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- ILI9488 LCD Test Start ---\r\n");

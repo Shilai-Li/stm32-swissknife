@@ -10,7 +10,7 @@ QueueHandle_t xCmdQueue = NULL;
 TaskHandle_t xProducerHandle = NULL;
 TaskHandle_t xConsumerHandle = NULL;
 
-void user_main(void)
+void app_main(void)
 {
     // Inject hardware handles
     UART_Register(CH_DEBUG, &huart2);

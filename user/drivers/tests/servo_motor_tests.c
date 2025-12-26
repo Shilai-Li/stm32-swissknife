@@ -14,7 +14,7 @@ extern TIM_HandleTypeDef htim1;
 
 Servo_Motor_HandleTypeDef hservo1;
 
-void user_main(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- Servo Motor Test Start ---\r\n");

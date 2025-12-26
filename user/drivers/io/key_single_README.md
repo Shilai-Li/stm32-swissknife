@@ -20,7 +20,7 @@ In `user_main`:
 ```c
 #include "io/key.h"
 
-void user_main(void)
+void app_main(void)
 {
     // Register Nucleo User Button (PC13, Active Low)
     // ID: 0 (You can define enum: KEY_USER = 0)

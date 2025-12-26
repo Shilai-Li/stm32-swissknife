@@ -4,7 +4,7 @@
 #include "protocols/crsf.h"
 #include "stm32f1xx_hal.h"
 
-void user_main(void)
+void app_main(void)
 {
     // Initialize UART driver (initializes all enabled UARTs)
     UART_Init();

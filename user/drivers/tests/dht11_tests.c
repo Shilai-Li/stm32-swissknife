@@ -3,7 +3,7 @@
 #include "uart.h"
 #include "delay.h"
 
-void user_main(void)
+void app_main(void)
 {
     DHT11_Data dht_data;
     DHT11_Status status;

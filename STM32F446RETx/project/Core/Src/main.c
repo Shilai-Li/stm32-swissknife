@@ -98,8 +98,8 @@ int main(void)
   MX_SDIO_SD_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-  // extern void user_main(void);
-  // user_main();
+  //extern void app_main(void);
+  //app_main();
   /* USER CODE END 2 */
 
   /* Init scheduler */
