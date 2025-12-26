@@ -49,11 +49,6 @@ define_module(letter_shell
 # communication
 # ==========================================
 
-define_module(uart
-    SOURCES drivers/communication/uart.c
-    INCLUDES drivers/communication
-)
-
 define_module(can
     SOURCES drivers/communication/can_driver.c
     INCLUDES drivers/communication
@@ -87,6 +82,11 @@ define_module(rs485
     SOURCES drivers/communication/rs485.c
     INCLUDES drivers/communication
     DEPENDS uart
+)
+
+define_module(uart
+    SOURCES drivers/communication/uart.c
+    INCLUDES drivers/communication
 )
 
 define_module(usb_serial
@@ -380,34 +380,43 @@ if (NOT DEFINED ENABLED_MODULES)
 
     # drivers
     # communication
-    elseif (TEST_CASE STREQUAL "uart")
+    elseif (TEST_CASE STREQUAL "can_tests")
+        list(APPEND ENABLED_MODULES can)
+        set(TEST_SRC drivers/tests/can_tests.c)
+
+    elseif (TEST_CASE STREQUAL "esp8266_tests")
+        list(APPEND ENABLED_MODULES esp8266)
+        set(TEST_SRC drivers/tests/esp8266_tests.c)
+
+    elseif (TEST_CASE STREQUAL "ir_nec_exti_tests")
+        list(APPEND ENABLED_MODULES ir_nec_exti)
+        set(TEST_SRC drivers/tests/ir_nec_exti_tests.c)
+
+    elseif (TEST_CASE STREQUAL "ir_nec_tim_tests")
+        list(APPEND ENABLED_MODULES ir_nec_tim)
+        set(TEST_SRC drivers/tests/ir_nec_tim_tests.c)
+
+    elseif (TEST_CASE STREQUAL "nrf24l01_tests")
+        list(APPEND ENABLED_MODULES nrf24l01)
+        set(TEST_SRC drivers/tests/nrf24l01_tests.c)
+
+    elseif (TEST_CASE STREQUAL "rs485_tests")
+        list(APPEND ENABLED_MODULES rs485)
+        set(TEST_SRC drivers/tests/rs485_tests.c)
+
+    elseif (TEST_CASE STREQUAL "uart_tests")
         list(APPEND ENABLED_MODULES uart)
         set(TEST_SRC drivers/tests/uart_tests.c)
 
     elseif (TEST_CASE STREQUAL "usb_serial")
         list(APPEND ENABLED_MODULES usb_serial delay)
         set(TEST_SRC drivers/tests/usb_serial_tests.c)
-    elseif (TEST_CASE STREQUAL "can")
-        list(APPEND ENABLED_MODULES can)
-        set(TEST_SRC drivers/tests/can_tests.c)
-    elseif (TEST_CASE STREQUAL "esp8266")
-        list(APPEND ENABLED_MODULES esp8266)
-        set(TEST_SRC drivers/tests/esp8266_tests.c)
-    elseif (TEST_CASE STREQUAL "ir_nec_exti")
-        list(APPEND ENABLED_MODULES ir_nec_exti)
-        set(TEST_SRC drivers/tests/ir_nec_exti_tests.c)
-    elseif (TEST_CASE STREQUAL "ir_nec_tim")
-        list(APPEND ENABLED_MODULES ir_nec_tim)
-        set(TEST_SRC drivers/tests/ir_nec_tim_tests.c)
-    elseif (TEST_CASE STREQUAL "nrf24l01")
-        list(APPEND ENABLED_MODULES nrf24l01)
-        set(TEST_SRC drivers/tests/nrf24l01_tests.c)
-    elseif (TEST_CASE STREQUAL "rs485")
-        list(APPEND ENABLED_MODULES rs485)
-        set(TEST_SRC drivers/tests/rs485_tests.c)
+
     elseif (TEST_CASE STREQUAL "w5500")
         list(APPEND ENABLED_MODULES w5500)
         set(TEST_SRC drivers/tests/w5500_tests.c)
+
+        
     # display
 
     # encoder

@@ -2,6 +2,12 @@
 #include "task.h"
 #include "main.h"
 #include <stdio.h>
+#include "usart.h"
+#include "uart.h"
+
+#define USER_LOG_UART 2
+#define SENSOR_UART   2
+#define CH_DEBUG 2
 
 // 任务句柄（可选，如果需要控制任务）
 TaskHandle_t xTestTaskHandle = NULL;
@@ -16,6 +22,8 @@ void TestTask(void *pvParameters)
     {
         // 这里的代码会无限循环执行
         // 例如：翻转 LED 或打印日志
+        UART_SendString(CH_DEBUG, "UART Initialized via Injection!\n");
+
         printf("Hello from FreeRTOS Task!\n");
 
         // 延时 1000 ticks (通常配置为 1ms 一跳，即 1秒)
@@ -27,6 +35,8 @@ void user_main(void)
 {
     printf("Starting FreeRTOS Scheduler...\n");
 
+
+    UART_Register(CH_DEBUG, &huart2);
     // 创建任务
     // 参数说明：
     // 1. 任务函数指针
@@ -35,12 +45,12 @@ void user_main(void)
     // 4. 传递给任务的参数
     // 5. 优先级（数字越大优先级越高，或者越低，取决于 FreeRTOSConfig.h 定义，通常越大越高）
     // 6. 任务句柄保存位置
-    BaseType_t ret = xTaskCreate(TestTask, "TestTask", 128, NULL, 1, &xTestTaskHandle);
+    BaseType_t ret = xTaskCreate(TestTask, "TestTask", 64, NULL, 1, &xTestTaskHandle);
 
     if (ret == pdPASS)
     {
         printf("Task created successfully.\n");
-        
+
         // 启动调度器 - 这通常不会返回，除非内存不足
         vTaskStartScheduler();
     }

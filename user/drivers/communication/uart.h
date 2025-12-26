@@ -8,56 +8,26 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-// #define USE_UART1
-#define USE_UART2
-// #define USE_UART3
-// #define USE_UART4
-// #define USE_UART5
-// #define USE_UART6
-// #define USE_UART7
-// #define USE_UART8
+// Logic channel ID, managed by user application
+typedef uint8_t UART_Channel;
 
-typedef enum {
-#if defined USE_UART1
-    UART_CHANNEL_1,
-#endif
-#if defined USE_UART2
-    UART_CHANNEL_2,
-#endif
-#if defined USE_UART3
-    UART_CHANNEL_3,
-#endif
-#if defined USE_UART4
-    UART_CHANNEL_4,
-#endif
-#if defined USE_UART5
-    UART_CHANNEL_5,
-#endif
-#if defined USE_UART6
-    UART_CHANNEL_6,
-#endif
-#if defined USE_UART7
-    UART_CHANNEL_7,
-#endif
-#if defined USE_UART8
-    UART_CHANNEL_8,
-#endif
-    UART_CHANNEL_MAX
-} UART_Channel;
+#define UART_CHANNEL_MAX 3 // Reduced to save RAM (was 8)
 
 /* ============================================================================
  * UART Configuration
  * ========================================================================= */
 #ifndef UART_RX_BUF_SIZE
-#define UART_RX_BUF_SIZE  2048
+#define UART_RX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
 #endif
 
 #ifndef UART_TX_BUF_SIZE
-#define UART_TX_BUF_SIZE  2048
+#define UART_TX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
 #endif
 
+// UART_DEBUG_CHANNEL should be defined by user if they use UART_Debug_Printf, 
+// usually as a macro in main.h or here if hardcoded. Defaulting to 0.
 #ifndef UART_DEBUG_CHANNEL
-#define UART_DEBUG_CHANNEL UART_CHANNEL_2
+#define UART_DEBUG_CHANNEL 0
 #endif
 
 typedef struct {
@@ -79,7 +49,15 @@ typedef struct {
 /* ============================================================================
  * UART Public API
  * ========================================================================= */
-void UART_Init(void);
+// Register a hardware handle to a logic channel
+// huart should be (UART_HandleTypeDef *)
+void UART_Register(UART_Channel channel, void *huart);
+void UART_Init(void); // Optional: global init if needed, or remove. I will remove it to force registration.
+// Actually keeping UART_Init empty or removing it. Removing it is better.
+// But wait, the previous code had UART_Init calling HAL_UART_Receive_DMA. 
+// We should move that logic to UART_Register.
+// So let's just add UART_Register.
+
 void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
 void UART_SendString(UART_Channel channel, const char *str);
 uint16_t UART_Available(UART_Channel channel);

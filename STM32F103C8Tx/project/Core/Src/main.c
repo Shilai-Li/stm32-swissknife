@@ -94,7 +94,8 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  extern void user_main(void);
+  user_main();
   /* USER CODE END 2 */
 
   /* Init scheduler */

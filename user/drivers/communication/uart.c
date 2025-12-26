@@ -1,19 +1,12 @@
 #include "uart.h"
 
-#include "usart.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
 
-/* ============================================================================
- * Internal Definitions & Static Data
- * ========================================================================= */
-
-// DMA Circular Mode 接收缓冲区
 static uint8_t RxDMABuf[UART_CHANNEL_MAX][UART_RX_BUF_SIZE];
 static volatile uint16_t RxDMAPos[UART_CHANNEL_MAX];
 
-// TX Ring Buffer (Internal)
 typedef struct {
     uint8_t buf[UART_TX_BUF_SIZE];
     volatile uint16_t head;
@@ -25,36 +18,40 @@ typedef struct {
 static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 static UART_TxRingBuf uart_tbuf[UART_CHANNEL_MAX];
 
-/* ============================================================================
- * Hardware Mapping Helpers
- * ========================================================================= */
+#include "main.h"  // For UART_HandleTypeDef definition
 
-static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {
-#if defined USE_UART1
-    &huart1,
-#endif
-#if defined USE_UART2
-    &huart2,
-#endif
-#if defined USE_UART3
-    &huart3,
-#endif
-#if defined USE_UART4
-    &huart4,
-#endif
-#if defined USE_UART5
-    &huart5,
-#endif
-#if defined USE_UART6
-    &huart6,
-#endif
-#if defined USE_UART7
-    &huart7,
-#endif
-#if defined USE_UART8
-    &huart8,
-#endif
-};
+static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {NULL};
+
+void UART_Register(UART_Channel channel, void *handle)
+{
+    if (channel >= UART_CHANNEL_MAX || handle == NULL) return;
+    
+    UART_HandleTypeDef *huart = (UART_HandleTypeDef *)handle;
+    UART_Handles[channel] = huart;
+
+    // Initialize Buffers
+    uart_tbuf[channel].head = 0;
+    uart_tbuf[channel].tail = 0;
+    uart_tbuf[channel].busy = 0;
+    uart_tbuf[channel].inflight_len = 0;
+    
+    uart_rbuf[channel].head = 0;
+    uart_rbuf[channel].tail = 0;
+    uart_rbuf[channel].overrun_cnt = 0;
+    uart_rbuf[channel].tx_dropped = 0;
+    uart_rbuf[channel].error_cnt = 0;
+    uart_rbuf[channel].pe_error_cnt = 0;
+    uart_rbuf[channel].ne_error_cnt = 0;
+    uart_rbuf[channel].fe_error_cnt = 0;
+    uart_rbuf[channel].ore_error_cnt = 0;
+    uart_rbuf[channel].dma_error_cnt = 0;
+    uart_rbuf[channel].error_flag = 0;
+    
+    RxDMAPos[channel] = 0;
+
+    // Start DMA Reception
+    HAL_UART_Receive_DMA(huart, RxDMABuf[channel], UART_RX_BUF_SIZE);
+}
 
 static UART_HandleTypeDef* UART_GetHandle(UART_Channel ch)
 {
@@ -72,11 +69,6 @@ static int UART_HandleToChannel(UART_HandleTypeDef *huart)
     return -1;
 }
 
-/* ============================================================================
- * Internal Helpers - RX DMA Processing
- * ========================================================================= */
-
-// 从 DMA 缓冲区复制数据到软件环形缓冲区
 static void UART_ProcessDMA(UART_Channel ch) {
     UART_HandleTypeDef *huart = UART_GetHandle(ch);
     if (!huart || !huart->hdmarx) return;
@@ -84,7 +76,6 @@ static void UART_ProcessDMA(UART_Channel ch) {
     UART_RingBuf *rb = &uart_rbuf[ch];
     uint8_t *dma_buf = RxDMABuf[ch];
     
-    // 计算当前 DMA 位置
     uint16_t dma_curr_pos = UART_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(huart->hdmarx);
     if (dma_curr_pos >= UART_RX_BUF_SIZE) dma_curr_pos = 0;
 
@@ -94,7 +85,6 @@ static void UART_ProcessDMA(UART_Channel ch) {
         uint16_t head = rb->head;
         
         if (dma_curr_pos > last_pos) {
-            // 线性复制
             for (uint16_t i = last_pos; i < dma_curr_pos; i++) {
                 uint16_t next = (head + 1) % UART_RX_BUF_SIZE;
                 if (next != rb->tail) {
@@ -105,7 +95,6 @@ static void UART_ProcessDMA(UART_Channel ch) {
                 }
             }
         } else {
-            // 环绕复制
             for (uint16_t i = last_pos; i < UART_RX_BUF_SIZE; i++) {
                 uint16_t next = (head + 1) % UART_RX_BUF_SIZE;
                 if (next != rb->tail) {
@@ -131,10 +120,6 @@ static void UART_ProcessDMA(UART_Channel ch) {
     }
 }
 
-/* ============================================================================
- * Internal Helpers - TX
- * ========================================================================= */
-
 static void UART_TxKick(UART_Channel ch)
 {
     UART_HandleTypeDef *huart = UART_GetHandle(ch);
@@ -156,7 +141,6 @@ static void UART_TxKick(UART_Channel ch)
     tb->busy = 1;
     tb->inflight_len = len;
 
-    // 使用 DMA 发送（Normal 模式）
     HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(huart, &tb->buf[tb->tail], len);
     if (status != HAL_OK) {
         tb->busy = 0;
@@ -164,10 +148,6 @@ static void UART_TxKick(UART_Channel ch)
         uart_rbuf[ch].error_cnt++;
     }
 }
-
-/* ============================================================================
- * Ring Buffer Operations
- * ========================================================================= */
 
 static bool UART_RingBuf_Pop(UART_Channel ch, uint8_t *out)
 {
@@ -186,46 +166,6 @@ uint16_t UART_Available(UART_Channel ch)
     if (rb->head >= rb->tail) return rb->head - rb->tail;
     return UART_RX_BUF_SIZE - (rb->tail - rb->head);
 }
-
-/* ============================================================================
- * Initialization
- * ========================================================================= */
-
-void UART_Init(void)
-{
-    for (int i = 0; i < UART_CHANNEL_MAX; i++) {
-        UART_HandleTypeDef *huart = UART_Handles[i];
-        if (huart != NULL) {
-            // 初始化 TX 缓冲区
-            uart_tbuf[i].head = 0;
-            uart_tbuf[i].tail = 0;
-            uart_tbuf[i].busy = 0;
-            uart_tbuf[i].inflight_len = 0;
-            
-            // 初始化 RX 缓冲区
-            uart_rbuf[i].head = 0;
-            uart_rbuf[i].tail = 0;
-            uart_rbuf[i].overrun_cnt = 0;
-            uart_rbuf[i].tx_dropped = 0;
-            uart_rbuf[i].error_cnt = 0;
-            uart_rbuf[i].pe_error_cnt = 0;
-            uart_rbuf[i].ne_error_cnt = 0;
-            uart_rbuf[i].fe_error_cnt = 0;
-            uart_rbuf[i].ore_error_cnt = 0;
-            uart_rbuf[i].dma_error_cnt = 0;
-            uart_rbuf[i].error_flag = 0;
-            
-            RxDMAPos[i] = 0;
-
-            // 启动 DMA 接收（Circular 模式）
-            HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
-        }
-    }
-}
-
-/* ============================================================================
- * Send/Receive API
- * ========================================================================= */
 
 void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
 {
@@ -284,23 +224,19 @@ void UART_Poll(void)
     for (int i = 0; i < UART_CHANNEL_MAX; i++) {
         UART_HandleTypeDef *huart = UART_GetHandle((UART_Channel)i);
         if (huart != NULL) {
-            // 检查 TX 是否卡住
             if (uart_tbuf[i].busy && huart->gState == HAL_UART_STATE_READY) {
                 uart_tbuf[i].busy = 0;
                 uart_tbuf[i].inflight_len = 0;
             }
             
-            // 检查 RX DMA 是否停止
             if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
                 RxDMAPos[i] = 0;
                 HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
             }
         }
         
-        // 处理 RX 数据
         UART_ProcessDMA((UART_Channel)i);
         
-        // 重试 TX
         if (uart_tbuf[i].head != uart_tbuf[i].tail) {
             UART_TxKick((UART_Channel)i);
         }
@@ -349,10 +285,6 @@ uint32_t UART_GetDMAErrorCount(UART_Channel ch)
     return uart_rbuf[ch].dma_error_cnt;
 }
 
-/* ============================================================================
- * HAL Callback Wrappers
- * ========================================================================= */
-
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
     int ch = UART_HandleToChannel(huart);
@@ -383,13 +315,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     if (error_flags & HAL_UART_ERROR_ORE) rb->ore_error_cnt++;
     if (error_flags & HAL_UART_ERROR_DMA) rb->dma_error_cnt++;
 
-    // 清除错误标志
     __HAL_UART_CLEAR_OREFLAG(huart);
     __HAL_UART_CLEAR_NEFLAG(huart);
     __HAL_UART_CLEAR_FEFLAG(huart);
     __HAL_UART_CLEAR_PEFLAG(huart);
     
-    // 如果 RX DMA 停止了，重启它
     if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
         RxDMAPos[ch] = 0;
         HAL_UART_Receive_DMA(huart, RxDMABuf[ch], UART_RX_BUF_SIZE);

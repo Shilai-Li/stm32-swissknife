@@ -1,10 +1,16 @@
 #include "uart.h"
 
 #include "main.h"
+#include "usart.h"
+
+#define CH_DEBUG 0
 
 void user_main(void)
 {
-    UART_Init();
+    // 注入：将 CH_DEBUG 绑定到 huart2 硬件上
+    UART_Register(CH_DEBUG, &huart2);
+    // 之后就可以正常使用了
+    UART_SendString(CH_DEBUG, "UART Initialized via Injection!\r\n");
 
     UART_Debug_Printf("System initialized successfully.\r\n");
 
