@@ -28,7 +28,16 @@ macro(define_module name)
 endmacro()
 
 # applications
-
+define_module(freertos_producer_consumer
+    SOURCES 
+        applications/freertos_producer_consumer/app_main.c
+        applications/freertos_producer_consumer/producer_task.c
+        applications/freertos_producer_consumer/consumer_task.c
+    INCLUDES 
+        applications/freertos_producer_consumer
+    DEPENDS 
+        uart led usb_cdc
+)
 
 # components
 
@@ -363,14 +372,8 @@ if (NOT DEFINED ENABLED_MODULES)
     set(TEST_SRC "")
 
     # applications
-    if (TEST_CASE STREQUAL "freertos_tests")
-        list(APPEND ENABLED_MODULES led uart usb_cdc) 
-        set(TEST_SRC 
-            applications/freertos_producer_consumer/app_main.c
-            applications/freertos_producer_consumer/producer_task.c
-            applications/freertos_producer_consumer/consumer_task.c
-        )
-        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE applications/freertos_producer_consumer)
+    if (TEST_CASE STREQUAL "freertos_producer_consumer")
+        list(APPEND ENABLED_MODULES freertos_producer_consumer)
         
     elseif (TEST_CASE STREQUAL "i2c_master")
         list(APPEND ENABLED_MODULES uart)
