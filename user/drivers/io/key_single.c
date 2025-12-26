@@ -1,4 +1,4 @@
-#include "key.h"
+#include "key_single.h"
 
 // Configuration
 #define DEBOUNCE_TIME_MS      20

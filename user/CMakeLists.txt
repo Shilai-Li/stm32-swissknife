@@ -186,7 +186,7 @@ define_module(led
 )
 
 define_module(key
-    SOURCES drivers/io/key.c
+    SOURCES drivers/io/key_single.c
     INCLUDES drivers/io
 )
 
@@ -435,7 +435,7 @@ if (NOT DEFINED ENABLED_MODULES)
         set(TEST_SRC drivers/io/led_tests.c)
     elseif (TEST_CASE STREQUAL "key_tests")
         list(APPEND ENABLED_MODULES key uart usb_cdc)
-        set(TEST_SRC drivers/io/key_tests.c)
+        set(TEST_SRC drivers/io/key_single_tests.c)
 
     elseif (TEST_CASE STREQUAL "key_matrix_tests")
         list(APPEND ENABLED_MODULES key_matrix uart usb_cdc)
