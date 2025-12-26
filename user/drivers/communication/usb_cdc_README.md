@@ -10,33 +10,37 @@ This module wraps the STM32 USB CDC Middleware into a simple, Arduino-like Seria
     *   **Configuration -> NVIC**: Enable USB global interrupt.
     *   **Heap/Stack**: Increase Heap Size (e.g., 0x400) and Stack Size (e.g., 0x400) in "Project Manager -> Linker Settings" slightly, as USB stack uses some memory.
 
-## Integration Steps (Critical!)
+## Integration Steps (CRITICAL!)
 
-Since CubeMX re-generates the `USB_DEVICE` folder, you must manually add hooks to link our driver with the ST USB Stack.
+**⚠️ You MUST perform these modifications manually. The driver will NOT receive data otherwise.**
+
+Since CubeMX generates the USB Middleware, the `CDC_Receive_FS` callback is isolated inside `USB_DEVICE/App/usbd_cdc_if.c`. Typically, this generated function receives data but **throws it away** (does nothing with it).
 
 ### 1. Modify `USB_DEVICE/App/usbd_cdc_if.c`
 
-Open the generated file `usbd_cdc_if.c` and make two changes:
+Open the generated file `usbd_cdc_if.c`. Detailed steps:
 
 **Step A: Include Header**
 Go to `/* USER CODE BEGIN Includes */` section:
 ```c
 /* USER CODE BEGIN Includes */
-#include "usb_cdc.h"
+#include "communication/usb_cdc.h" // Adjust path if using different include structure
 /* USER CODE END Includes */
 ```
 
-**Step B: Capture Received Data**
-Find the function `CDC_Receive_FS`. Add the callback hook inside:
+**Step B: Capture Received Data (The Hook)**
+Find the function **`CDC_Receive_FS`**. It is the ONLY place where incoming data is available. You must inject our callback here:
 
 ```c
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
   
-  // >>> INSERT THIS LINE <<<
+  // ============================================================
+  // >>> CRITICAL: Pass data to our RingBuffer <<<
+  // Without this line, you can SEND data but will never RECEIVE anything!
+  // ============================================================
   USB_CDC_RxCallback(Buf, *Len); 
-  // >>> END INSERT <<<
 
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
@@ -46,10 +50,19 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 ```
 
 ### 2. Initialization
-In your `main.c` (or `user_main.c`):
+In your `main.c`:
 *   Ensure `MX_USB_DEVICE_Init()` is called (CubeMX does this).
-*   Call `USB_CDC_Init()` to reset buffers.
-*   **Wait for Enumeration**: USB takes 1-2 seconds to enumerate on the PC. Don't send data immediately after boot.
+*   Call `USB_CDC_Init()` to clear buffers.
+*   **Wait for Enumeration**: USB enumeration takes 1-2 seconds. `USB_CDC_Send` will fail (silent drop) if called before the PC recognizes the device.
+
+---
+
+## Disabling USB in CubeMX
+If you decide to disable USB support in CubeMX:
+1.  **Regenerate Code**: CubeMX might delete or unlink `usbd_cdc_if.c`.
+2.  **Update CMakeLists**: You MUST remove `usb_cdc` from your `ENABLED_MODULES` list.
+    *   Since `usb_cdc.c` includes `usbd_cdc_if.h`, compiling it without the USB stack enabled will cause immediate build errors.
+
 
 ## Usage API
 
