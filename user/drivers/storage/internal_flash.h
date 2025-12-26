@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-#include "stm32f1xx_hal.h" // Adapt header if using F4/G4
+#include "main.h"
 #include <stdint.h>
 #include <stdbool.h>
 

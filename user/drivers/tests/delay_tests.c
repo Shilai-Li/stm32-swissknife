@@ -1,7 +1,8 @@
 #include "delay.h"
 #include "uart.h"
+#include <stdio.h>
 
-void User_Entry(void)
+void app_main(void)
 {
     UART_Debug_Printf("Initializing Delay Driver...\r\n");
     Delay_Init();

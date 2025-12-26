@@ -11,7 +11,7 @@
 #include "main.h"
 
 #ifndef __STM32F1xx_HAL_I2C_H
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #endif
 
 /* AT24Cxx Model Definitions */

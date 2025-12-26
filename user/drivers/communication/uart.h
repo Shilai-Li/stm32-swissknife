@@ -8,56 +8,54 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-// #define USE_UART1
-#define USE_UART2
-// #define USE_UART3
-// #define USE_UART4
-// #define USE_UART5
-// #define USE_UART6
-// #define USE_UART7
-// #define USE_UART8
+#if defined(STM32F0)
+    #include "stm32f0xx_hal.h"
+#elif defined(STM32F1) || defined(STM32F103xB) || defined(STM32F103xE)
+    #include "stm32f1xx_hal.h"
+#elif defined(STM32F2)
+    #include "stm32f2xx_hal.h"
+#elif defined(STM32F3)
+    #include "stm32f3xx_hal.h"
+#elif defined(STM32F4) || defined(STM32F405xx) || defined(STM32F407xx) || defined(STM32F429xx) || defined(STM32F446xx)
+    #include "stm32f4xx_hal.h"
+#elif defined(STM32F7)
+    #include "stm32f7xx_hal.h"
+#elif defined(STM32H7)
+    #include "stm32h7xx_hal.h"
+#elif defined(STM32L0)
+    #include "stm32l0xx_hal.h"
+#elif defined(STM32L1)
+    #include "stm32l1xx_hal.h"
+#elif defined(STM32L4)
+    #include "stm32l4xx_hal.h"
+#elif defined(STM32G0)
+    #include "stm32g0xx_hal.h"
+#elif defined(STM32G4)
+    #include "stm32g4xx_hal.h"
+#else
+    #include "main.h"
+#endif
 
-typedef enum {
-#if defined USE_UART1
-    UART_CHANNEL_1,
-#endif
-#if defined USE_UART2
-    UART_CHANNEL_2,
-#endif
-#if defined USE_UART3
-    UART_CHANNEL_3,
-#endif
-#if defined USE_UART4
-    UART_CHANNEL_4,
-#endif
-#if defined USE_UART5
-    UART_CHANNEL_5,
-#endif
-#if defined USE_UART6
-    UART_CHANNEL_6,
-#endif
-#if defined USE_UART7
-    UART_CHANNEL_7,
-#endif
-#if defined USE_UART8
-    UART_CHANNEL_8,
-#endif
-    UART_CHANNEL_MAX
-} UART_Channel;
+// Logic channel ID, managed by user application
+typedef uint8_t UART_Channel;
+
+#define UART_CHANNEL_MAX 3 // Reduced to save RAM (was 8)
 
 /* ============================================================================
  * UART Configuration
  * ========================================================================= */
 #ifndef UART_RX_BUF_SIZE
-#define UART_RX_BUF_SIZE  2048
+#define UART_RX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
 #endif
 
 #ifndef UART_TX_BUF_SIZE
-#define UART_TX_BUF_SIZE  2048
+#define UART_TX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
 #endif
 
+// UART_DEBUG_CHANNEL should be defined by user if they use UART_Debug_Printf, 
+// usually as a macro in main.h or here if hardcoded. Defaulting to 0.
 #ifndef UART_DEBUG_CHANNEL
-#define UART_DEBUG_CHANNEL UART_CHANNEL_2
+#define UART_DEBUG_CHANNEL 0
 #endif
 
 typedef struct {
@@ -79,12 +77,15 @@ typedef struct {
 /* ============================================================================
  * UART Public API
  * ========================================================================= */
-void UART_Init(void);
+
+void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart);
 void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
 void UART_SendString(UART_Channel channel, const char *str);
 uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);
 bool UART_Receive(UART_Channel channel, uint8_t *out, uint32_t timeout_ms);
+void UART_Flush(UART_Channel channel);
+bool UART_IsTxBusy(UART_Channel channel);
 uint32_t UART_GetRxOverrunCount(UART_Channel channel);
 void UART_Poll(void);
 uint32_t UART_GetTxDropCount(UART_Channel channel);

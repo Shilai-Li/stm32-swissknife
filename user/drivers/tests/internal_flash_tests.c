@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void Test_InternalFlash_Entry(void) {
+void app_main(void) {
     UART_Init();
     UART_Debug_Printf("\r\n=== Internal Flash Test Start ===\r\n");
 

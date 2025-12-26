@@ -28,7 +28,7 @@
 #include "main.h"
 
 #ifndef __STM32F1xx_HAL_TIM_H
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #endif
 
 typedef struct {

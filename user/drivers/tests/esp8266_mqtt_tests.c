@@ -126,7 +126,7 @@ static bool ESP_MQTT_Setup(void) {
  * ======================================================================== */
 #if TEST_MQTT_PUBLISH
 
-void User_Entry(void) {
+void app_main(void) {
     HAL_Delay(100);
     
     PRINT("\r\n\r\n");

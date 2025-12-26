@@ -19,7 +19,7 @@
 
 ESP8266_Handle_t esp;
 
-void Test_ESP8266_Entry(void) {
+void app_main(void) {
     UART_Init();
     
     UART_Debug_Printf("=== ESP8266 Test Start ===\r\n");

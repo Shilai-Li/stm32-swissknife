@@ -6,6 +6,9 @@
  */
 
 #include "xpt2046.h"
+// No external dependencies! (except HAL GPIO in main.h)
+// We need HAL definitions. Usually main.h -> stm32f4xx_hal.h is enough.
+// If SPI_HandleTypeDef is missing, check HAL_SPI_MODULE_ENABLED in stm32f4xx_hal_conf.h
 
 // Command Definitions
 // Bit 7: Start Bit (Always 1)
@@ -21,7 +24,12 @@ static uint16_t XPT2046_ReadRaw(XPT2046_HandleTypeDef *htouch, uint8_t cmd) {
     uint8_t rx[3] = {0, 0, 0};
     
     HAL_GPIO_WritePin(htouch->CsPort, htouch->CsPin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(htouch->hspi, tx, rx, 3, 100);
+    
+    // Call Generic Interface
+    if (htouch->spi_func && htouch->handle) {
+         htouch->spi_func(htouch->handle, tx, rx, 3, 100);
+    }
+    
     HAL_GPIO_WritePin(htouch->CsPort, htouch->CsPin, GPIO_PIN_SET);
     
     // Result is in rx[1] and rx[2]
@@ -29,15 +37,14 @@ static uint16_t XPT2046_ReadRaw(XPT2046_HandleTypeDef *htouch, uint8_t cmd) {
     return ((rx[1] << 4) | (rx[2] >> 4)); 
 }
 
+// ... Median Filter Code stays the same ...
 // Median Filter: Read 5 times, sort, take middle
 #define READ_TIMES 5
 static uint16_t XPT2046_ReadFiltered(XPT2046_HandleTypeDef *htouch, uint8_t cmd) {
     uint16_t buffer[READ_TIMES];
-    // Read
     for(int i=0; i<READ_TIMES; i++) {
         buffer[i] = XPT2046_ReadRaw(htouch, cmd);
     }
-    // Sort (Bubble sort is fine for 5 items)
     for(int i=0; i<READ_TIMES-1; i++) {
         for(int j=0; j<READ_TIMES-i-1; j++) {
             if(buffer[j] > buffer[j+1]) {
@@ -47,15 +54,17 @@ static uint16_t XPT2046_ReadFiltered(XPT2046_HandleTypeDef *htouch, uint8_t cmd)
             }
         }
     }
-    // Return median
     return buffer[READ_TIMES/2];
 }
 
-void XPT2046_Init(XPT2046_HandleTypeDef *htouch, SPI_HandleTypeDef *hspi, 
+void XPT2046_Init(XPT2046_HandleTypeDef *htouch, 
+                  void *spi_handle, XPT_TransmitReceive_Func spi_func,
                   GPIO_TypeDef *cs_port, uint16_t cs_pin,
                   GPIO_TypeDef *irq_port, uint16_t irq_pin) 
 {
-    htouch->hspi = hspi;
+    htouch->handle = spi_handle;
+    htouch->spi_func = spi_func;
+    
     htouch->CsPort = cs_port; htouch->CsPin = cs_pin;
     htouch->IrqPort = irq_port; htouch->IrqPin = irq_pin;
     

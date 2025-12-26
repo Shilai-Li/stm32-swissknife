@@ -18,12 +18,14 @@
  *    - Connect 4.7k - 10k Pull-up resistor between VCC and Data if using Open Drain.
  * =================================================================================
  */
+#ifndef DHT11_H
+#define DHT11_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "stm32f1xx_hal.h"
+#include "main.h"
 
 /* ============================================================
  * Type Definitions

@@ -10,7 +10,7 @@
 
 extern ADC_HandleTypeDef hadc1; 
 
-void Test_Pot_Entry(void) {
+void app_main(void) {
     UART_Init();
     UART_Debug_Printf("\r\n=== Potentiometer Test Start ===\r\n");
 

@@ -31,7 +31,7 @@ extern TIM_HandleTypeDef htim1; // Use TIM1 for 1us timebase
 
 HCSR04_HandleTypeDef hsonar;
 
-void User_Entry(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- HC-SR04 Test Start ---\r\n");

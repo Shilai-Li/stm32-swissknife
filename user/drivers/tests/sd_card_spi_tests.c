@@ -17,7 +17,7 @@ extern SPI_HandleTypeDef hspi1;
 
 SD_Card_SPI_HandleTypeDef hsd;
 
-void User_Entry(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- SD Card SPI Test Start ---\r\n");

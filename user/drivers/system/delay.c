@@ -1,89 +1,44 @@
 #include "delay.h"
+#include "main.h" 
 
-#if USE_DELAY_TIM
+/* 
+ * DWT (Data Watchpoint and Trace) is a debug unit inside Cortex-M3/M4/M7.
+ * It provides a cycle counter (CYCCNT) that increments at CPU clock speed.
+ * This allows for very precise microsecond delays without using a hardware Timer.
+ */
 
-#include "tim.h"
-#include "uart.h"
-#include <stdio.h>
-
-/* Global variable to accumulate microseconds on timer overflow (uint64_t for robustness) */
-static volatile uint64_t _micros_acc = 0;
+static uint32_t cpu_freq_mhz = 0;
 
 /**
- * @brief  Initialize microsecond timer using the selected TIM instance.
- *         This function calculates the prescaler to ensure 1us tick.
+ * @brief  Initialize DWT for microsecond delay
  */
 void Delay_Init(void)
 {
-    uint32_t timer_clock_freq = 0;
-    RCC_ClkInitTypeDef RCC_ClkInitStruct;
-    uint32_t pFLatency;
+    /* 1. Get CPU Frequency in MHz */
+    cpu_freq_mhz = HAL_RCC_GetHCLKFreq() / 1000000;
 
-    /* Get clock configuration */
-    HAL_RCC_GetClockConfig(&RCC_ClkInitStruct, &pFLatency);
+    /* 2. Enable TRCENA in DEMCR (Debug Exception and Monitor Control Register) 
+     *    This enables the DWT unit.
+     */
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
 
-    /* Determine Timer Clock Frequency */
-    if (DELAY_TIM_INSTANCE == TIM1)
-    {
-        /* TIM1 is on APB2 */
-        timer_clock_freq = HAL_RCC_GetPCLK2Freq();
-        if (RCC_ClkInitStruct.APB2CLKDivider != RCC_HCLK_DIV1)
-        {
-            timer_clock_freq *= 2;
-        }
-    }
-    else
-    {
-        /* TIM2, TIM3, TIM4 are on APB1 */
-        timer_clock_freq = HAL_RCC_GetPCLK1Freq();
-        if (RCC_ClkInitStruct.APB1CLKDivider != RCC_HCLK_DIV1)
-        {
-            timer_clock_freq *= 2;
-        }
-    }
+    /* 3. Reset Cycle Counter */
+    DWT->CYCCNT = 0;
 
-    /* Calculate Prescaler for 1MHz (1us tick) */
-    /* Prescaler = (TimerClock / 1MHz) - 1 */
-    uint32_t prescaler = (timer_clock_freq / 1000000) - 1;
-
-    /* Ensure TIM is stopped/reset before starting */
-    __HAL_TIM_SET_COUNTER(&DELAY_TIM_HANDLE, 0);
-    
-    /* Update Prescaler */
-    __HAL_TIM_SET_PRESCALER(&DELAY_TIM_HANDLE, prescaler);
-    
-    /* Start timer in interrupt mode */
-    HAL_TIM_Base_Start_IT(&DELAY_TIM_HANDLE);
+    /* 4. Enable Cycle Counter in DWT_CTRL */
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
 /**
- * @brief This callback is called automatically by HAL on timer overflow (update event).
- *        Renamed to avoid conflict with main application.
- */
-void Delay_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == DELAY_TIM_INSTANCE)
-    {
-        _micros_acc += 1000UL;  // 1ms period = 1000 microseconds (assuming Period=999)
-    }
-}
-
-/**
- * @brief Get current time in microseconds (rolls over every ~584,942 years)
+ * @brief Get current time in microseconds (from DWT cycle counter)
+ * @note  This counter overflows every (2^32 / CPU_Freq) seconds.
+ *        At 72MHz, it overflows every ~59 seconds.
+ *        At 168MHz, it overflows every ~25 seconds.
  */
 uint32_t micros(void)
 {
-    uint64_t base0, base1;
-    uint16_t cnt;
-    
-    /* Lock-free read: Keep reading until _micros_acc is stable (not updated by ISR during read) */
-    do {
-        base0 = _micros_acc;
-        cnt = __HAL_TIM_GET_COUNTER(&DELAY_TIM_HANDLE);
-        base1 = _micros_acc;
-    } while (base0 != base1);
-    
-    return (uint32_t)(base0 + cnt);
+    if (cpu_freq_mhz == 0) Delay_Init(); // Auto-init if forgotten
+    return DWT->CYCCNT / cpu_freq_mhz;
 }
 
 /**
@@ -91,7 +46,8 @@ uint32_t micros(void)
  */
 uint32_t millis(void)
 {
-    return micros() / 1000;
+    // Use HAL_GetTick if available (SysTick based), otherwise use DWT
+    return HAL_GetTick(); 
 }
 
 /**
@@ -99,10 +55,15 @@ uint32_t millis(void)
  */
 void Delay_us(uint32_t us)
 {
-    uint32_t start = micros();
-    while ((micros() - start) < us)
+    if (cpu_freq_mhz == 0) Delay_Init();
+    uint32_t start_cycles = DWT->CYCCNT;
+    uint32_t target_cycles = us * cpu_freq_mhz;
+
+    // Handle overflow automatically by using unsigned arithmetic subtraction
+    while ((DWT->CYCCNT - start_cycles) < target_cycles)
     {
         // Busy wait
+        __NOP(); 
     }
 }
 
@@ -117,4 +78,11 @@ void Delay_ms(uint32_t ms)
     }
 }
 
-#endif
+/**
+ * @brief Legacy/Compatibility function for Timer callback (Not needed for DWT)
+ */
+void Delay_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    // Unused in DWT mode
+    (void)htim;
+}

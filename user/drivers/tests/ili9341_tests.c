@@ -32,7 +32,7 @@ extern SPI_HandleTypeDef hspi1;
 
 ILI9341_HandleTypeDef hili;
 
-void User_Entry(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- ILI9341 LCD Test Start ---\r\n");

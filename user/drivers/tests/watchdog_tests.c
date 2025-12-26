@@ -6,10 +6,8 @@
 
 #include "watchdog.h"
 #include "uart.h"
-#include "delay.h"
-#include "stm32f1xx_hal.h"
 
-void Test_Watchdog_Entry(void) {
+void app_main(void) {
     UART_Init();
     
     if (Watchdog_WasResetByDog()) {

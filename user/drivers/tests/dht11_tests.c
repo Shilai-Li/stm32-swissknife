@@ -1,6 +1,9 @@
 #include "dht11.h"
 
-void User_Entry(void)
+#include "uart.h"
+#include "delay.h"
+
+void app_main(void)
 {
     DHT11_Data dht_data;
     DHT11_Status status;

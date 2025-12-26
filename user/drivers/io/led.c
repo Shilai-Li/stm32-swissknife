@@ -1,40 +1,53 @@
 #include "led.h"
+#include <stddef.h> // for NULL
 
-#include "stm32f1xx_hal.h"
+// Internal handle structure/storage
+typedef struct {
+    GPIO_TypeDef* Port;
+    uint16_t      Pin;
+    uint8_t       ActiveLevel; // 0=Low, 1=High
+    uint8_t       IsRegistered;
+} LED_Handle_Internal_t;
 
-// LED GPIO configuration
-GPIO_TypeDef* GPIO_PORT[LED_n] = {GPIOC, GPIOC};
-uint16_t GPIO_PIN[LED_n] = {GPIO_PIN_13, GPIO_PIN_14};
-// Define the logic level that turns the buzzer ON
-GPIO_PinState LED_ON_LEVEL[LED_n] = {GPIO_PIN_RESET, GPIO_PIN_RESET}; // Active Low
+// Storage for registered LEDs
+static LED_Handle_Internal_t led_handles[LED_MAX_CHANNELS] = {0};
 
-/* ========== HAL: Public API Implementation ========== */
+/* ========== Public API Implementation ========== */
 
-/*
- * @brief Initialize LED GPIO pins (HAL)
- */
-void LED_Init(void)
+void LED_Register(Led_TypeDef Led, GPIO_TypeDef* Port, uint16_t Pin, Led_ActiveLevel_t ActiveLevel)
 {
-  // Turn off initially
-  for (int i = 0; i < LED_n; i++)
-  {
-    LED_Off((Led_TypeDef)i);
-  }
+    if (Led >= LED_MAX_CHANNELS) return;
+    
+    led_handles[Led].Port = Port;
+    led_handles[Led].Pin = Pin;
+    led_handles[Led].ActiveLevel = (uint8_t)ActiveLevel;
+    led_handles[Led].IsRegistered = 1;
+
+    // Optional: Set initial state to OFF
+    LED_Off(Led);
 }
 
 void LED_On(Led_TypeDef Led)
 {
-  HAL_GPIO_WritePin(GPIO_PORT[Led], GPIO_PIN[Led], LED_ON_LEVEL[Led]);
+    if (Led >= LED_MAX_CHANNELS || !led_handles[Led].IsRegistered) return;
+
+    // Determine the physical state for "ON"
+    GPIO_PinState state = (led_handles[Led].ActiveLevel == LED_ACTIVE_HIGH) ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    HAL_GPIO_WritePin(led_handles[Led].Port, led_handles[Led].Pin, state);
 }
 
 void LED_Off(Led_TypeDef Led)
 {
-  // Off state is the opposite of On state
-  GPIO_PinState off_level = (LED_ON_LEVEL[Led] == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET;
-  HAL_GPIO_WritePin(GPIO_PORT[Led], GPIO_PIN[Led], off_level);
+    if (Led >= LED_MAX_CHANNELS || !led_handles[Led].IsRegistered) return;
+
+    // Determine the physical state for "OFF"
+    GPIO_PinState state = (led_handles[Led].ActiveLevel == LED_ACTIVE_HIGH) ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    HAL_GPIO_WritePin(led_handles[Led].Port, led_handles[Led].Pin, state);
 }
 
 void LED_Toggle(Led_TypeDef Led)
 {
-  HAL_GPIO_TogglePin(GPIO_PORT[Led], GPIO_PIN[Led]);
+    if (Led >= LED_MAX_CHANNELS || !led_handles[Led].IsRegistered) return;
+
+    HAL_GPIO_TogglePin(led_handles[Led].Port, led_handles[Led].Pin);
 }

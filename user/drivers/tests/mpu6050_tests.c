@@ -12,7 +12,7 @@
  */
 extern I2C_HandleTypeDef hi2c1;
 
-void User_Entry(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("MPU6050 test start\r\n");

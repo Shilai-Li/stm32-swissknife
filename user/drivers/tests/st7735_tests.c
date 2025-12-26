@@ -31,7 +31,7 @@ extern SPI_HandleTypeDef hspi1;
 
 ST7735_HandleTypeDef hst7735;
 
-void User_Entry(void)
+void app_main(void)
 {
     UART_Init();
     UART_Debug_Printf("\r\n--- ST7735 LCD Test Start ---\r\n");

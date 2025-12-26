@@ -18,7 +18,7 @@ extern SPI_HandleTypeDef hspi1; // Or hspi2...
 #define CE_PIN   GPIO_PIN_1  // Example
 #endif
 
-void Test_NRF24_Entry(void) {
+void app_main(void) {
     UART_Init();
     UART_Debug_Printf("\r\n=== NRF24L01+ Test Start ===\r\n");
 
