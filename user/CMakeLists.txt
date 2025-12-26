@@ -418,7 +418,7 @@ if (NOT DEFINED ENABLED_MODULES)
         set(TEST_SRC drivers/tests/rs485_tests.c)
 
     elseif (TEST_CASE STREQUAL "uart_tests")
-        list(APPEND ENABLED_MODULES uart)
+        list(APPEND ENABLED_MODULES uart usb_cdc)
         set(TEST_SRC drivers/communication/uart_tests.c)
 
     elseif (TEST_CASE STREQUAL "usb_cdc_tests")

@@ -78,8 +78,12 @@ typedef struct {
  * UART Public API
  * ========================================================================= */
 
+// Callback type for RX Data Available
+typedef void (*UART_RxCallback)(UART_Channel channel);
+
 void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart);
-void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
+void UART_SetRxCallback(UART_Channel channel, UART_RxCallback cb);
+bool UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
 void UART_SendString(UART_Channel channel, const char *str);
 uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);

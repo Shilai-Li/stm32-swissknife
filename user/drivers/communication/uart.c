@@ -19,6 +19,7 @@ static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 static UART_TxRingBuf uart_tbuf[UART_CHANNEL_MAX];
 
 static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {NULL};
+static UART_RxCallback RxCallbacks[UART_CHANNEL_MAX] = {NULL};
 
 /* ============================================================================
  * Internal Function Prototypes
@@ -61,6 +62,16 @@ static void UART_ProcessDMA(UART_Channel ch) {
     uint16_t last_pos = RxDMAPos[ch];
 
     if (dma_curr_pos != last_pos) {
+        uint32_t primask = __get_PRIMASK();
+        __disable_irq();
+        
+        // Re-read inside critical to be sure? No, the dma_curr_pos is snapshot. 
+        // We need to protect rb->head and rb->tail updates if they are shared.
+        // Actually, rb->tail is updated by CONSUMER (Pop), rb->head is updated by PRODUCER (Here).
+        // Standard RingBuf: Single Producer Single Consumer is wait-free safe for head/tail SW updates.
+        // BUT: RxDMAPos is static volatile shared potentially if called from multiple contexts (e.g. Poll and IRQ).
+        // And rb->head update must be atomic vis-a-vis the read.
+
         uint16_t head = rb->head;
         
         if (dma_curr_pos > last_pos) {
@@ -96,6 +107,12 @@ static void UART_ProcessDMA(UART_Channel ch) {
         
         rb->head = head;
         RxDMAPos[ch] = dma_curr_pos;
+        
+        __set_PRIMASK(primask);
+
+        if (RxCallbacks[ch]) {
+            RxCallbacks[ch](ch);
+        }
     }
 }
 
@@ -106,8 +123,17 @@ static void UART_TxKick(UART_Channel ch)
 
     UART_TxRingBuf *tb = &uart_tbuf[ch];
 
-    if (tb->busy) return;
-    if (tb->head == tb->tail) return;
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
+    if (tb->busy) {
+        __set_PRIMASK(primask);
+        return;
+    }
+    if (tb->head == tb->tail) {
+        __set_PRIMASK(primask);
+        return;
+    }
 
     uint16_t len = 0;
     if (tb->head > tb->tail) {
@@ -115,10 +141,20 @@ static void UART_TxKick(UART_Channel ch)
     } else {
         len = UART_TX_BUF_SIZE - tb->tail;
     }
-    if (len == 0) return;
+    
+    if (len == 0) {
+        __set_PRIMASK(primask);
+        return;
+    }
 
     tb->busy = 1;
     tb->inflight_len = len;
+
+    // Re-enable interrupts before calling HAL (which might rely on interrupts/callbacks depending on impl, though Transmit_DMA usually just sets regs)
+    // However, if we enable here, another context might intervene. 
+    // Standard practice: Keep IRQ disabled for short logic, but HAL_UART_Transmit_DMA might benefit from being outside.
+    // BUT: If we enable IRQ, 'busy' flag protects us. So it IS safe to re-enable.
+    __set_PRIMASK(primask);
 
     HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(huart, &tb->buf[tb->tail], len);
     if (status != HAL_OK) {
@@ -169,14 +205,21 @@ void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart)
     HAL_UART_Receive_DMA(huart, RxDMABuf[channel], UART_RX_BUF_SIZE);
 }
 
+void UART_SetRxCallback(UART_Channel channel, UART_RxCallback cb)
+{
+    if (channel >= UART_CHANNEL_MAX) return;
+    RxCallbacks[channel] = cb;
+}
 
 
-void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
+
+bool UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
 {
     UART_HandleTypeDef *huart = UART_GetHandle(channel);
-    if (huart == NULL || data == NULL || len == 0) return;
+    if (huart == NULL || data == NULL || len == 0) return false;
 
     UART_TxRingBuf *tb = &uart_tbuf[channel];
+    bool success = true;
 
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
@@ -185,6 +228,7 @@ void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
         uint16_t next = (tb->head + 1) % UART_TX_BUF_SIZE;
         if (next == tb->tail) {
             uart_rbuf[channel].tx_dropped += (len - i);
+            success = false;
             break;
         }
         tb->buf[tb->head] = data[i];
@@ -194,6 +238,7 @@ void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
     __set_PRIMASK(primask);
 
     UART_TxKick(channel);
+    return success;
 }
 
 void UART_SendString(UART_Channel channel, const char *str)
