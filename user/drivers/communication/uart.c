@@ -18,41 +18,20 @@ typedef struct {
 static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 static UART_TxRingBuf uart_tbuf[UART_CHANNEL_MAX];
 
-#include "main.h"  // For UART_HandleTypeDef definition
-
 static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {NULL};
 
-void UART_Register(UART_Channel channel, void *handle)
-{
-    if (channel >= UART_CHANNEL_MAX || handle == NULL) return;
-    
-    UART_HandleTypeDef *huart = (UART_HandleTypeDef *)handle;
-    UART_Handles[channel] = huart;
+/* ============================================================================
+ * Internal Function Prototypes
+ * ========================================================================= */
+static UART_HandleTypeDef* UART_GetHandle(UART_Channel ch);
+static int UART_HandleToChannel(UART_HandleTypeDef *huart);
+static void UART_ProcessDMA(UART_Channel ch);
+static void UART_TxKick(UART_Channel ch);
+static bool UART_RingBuf_Pop(UART_Channel ch, uint8_t *out);
 
-    // Initialize Buffers
-    uart_tbuf[channel].head = 0;
-    uart_tbuf[channel].tail = 0;
-    uart_tbuf[channel].busy = 0;
-    uart_tbuf[channel].inflight_len = 0;
-    
-    uart_rbuf[channel].head = 0;
-    uart_rbuf[channel].tail = 0;
-    uart_rbuf[channel].overrun_cnt = 0;
-    uart_rbuf[channel].tx_dropped = 0;
-    uart_rbuf[channel].error_cnt = 0;
-    uart_rbuf[channel].pe_error_cnt = 0;
-    uart_rbuf[channel].ne_error_cnt = 0;
-    uart_rbuf[channel].fe_error_cnt = 0;
-    uart_rbuf[channel].ore_error_cnt = 0;
-    uart_rbuf[channel].dma_error_cnt = 0;
-    uart_rbuf[channel].error_flag = 0;
-    
-    RxDMAPos[channel] = 0;
-
-    // Start DMA Reception
-    HAL_UART_Receive_DMA(huart, RxDMABuf[channel], UART_RX_BUF_SIZE);
-}
-
+/* ============================================================================
+ * Internal Function Implementations
+ * ========================================================================= */
 static UART_HandleTypeDef* UART_GetHandle(UART_Channel ch)
 {
     if (ch >= UART_CHANNEL_MAX) return NULL;
@@ -158,14 +137,39 @@ static bool UART_RingBuf_Pop(UART_Channel ch, uint8_t *out)
     return true;
 }
 
-uint16_t UART_Available(UART_Channel ch)
+/* ============================================================================
+ * Public API Implementation
+ * ========================================================================= */
+
+void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart)
 {
-    UART_ProcessDMA(ch);
+    if (channel >= UART_CHANNEL_MAX || huart == NULL) return;
     
-    UART_RingBuf *rb = &uart_rbuf[ch];
-    if (rb->head >= rb->tail) return rb->head - rb->tail;
-    return UART_RX_BUF_SIZE - (rb->tail - rb->head);
+    UART_Handles[channel] = huart;
+
+    uart_tbuf[channel].head = 0;
+    uart_tbuf[channel].tail = 0;
+    uart_tbuf[channel].busy = 0;
+    uart_tbuf[channel].inflight_len = 0;
+    
+    uart_rbuf[channel].head = 0;
+    uart_rbuf[channel].tail = 0;
+    uart_rbuf[channel].overrun_cnt = 0;
+    uart_rbuf[channel].tx_dropped = 0;
+    uart_rbuf[channel].error_cnt = 0;
+    uart_rbuf[channel].pe_error_cnt = 0;
+    uart_rbuf[channel].ne_error_cnt = 0;
+    uart_rbuf[channel].fe_error_cnt = 0;
+    uart_rbuf[channel].ore_error_cnt = 0;
+    uart_rbuf[channel].dma_error_cnt = 0;
+    uart_rbuf[channel].error_flag = 0;
+    
+    RxDMAPos[channel] = 0;
+
+    HAL_UART_Receive_DMA(huart, RxDMABuf[channel], UART_RX_BUF_SIZE);
 }
+
+
 
 void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
 {
@@ -198,6 +202,15 @@ void UART_SendString(UART_Channel channel, const char *str)
     UART_Send(channel, (const uint8_t *)str, (uint16_t)strlen(str));
 }
 
+uint16_t UART_Available(UART_Channel ch)
+{
+    UART_ProcessDMA(ch);
+    
+    UART_RingBuf *rb = &uart_rbuf[ch];
+    if (rb->head >= rb->tail) return rb->head - rb->tail;
+    return UART_RX_BUF_SIZE - (rb->tail - rb->head);
+}
+
 bool UART_Read(UART_Channel ch, uint8_t *out)
 {
     UART_ProcessDMA(ch);
@@ -210,6 +223,36 @@ bool UART_Receive(UART_Channel ch, uint8_t *out, uint32_t timeout_ms)
     while ((HAL_GetTick() - start) < timeout_ms) {
         if (UART_Read(ch, out)) return true;
     }
+    return false;
+}
+
+void UART_Flush(UART_Channel ch)
+{
+    UART_HandleTypeDef *huart = UART_GetHandle(ch);
+    if (!huart) return;
+
+    // Critical Section might be needed here depending on usage
+    // Reset RingBuffer Pointers
+    uart_rbuf[ch].head = 0;
+    uart_rbuf[ch].tail = 0;
+    
+    // Sync DMA Position to current counter to avoid processing old data
+    if (huart->hdmarx) {
+        RxDMAPos[ch] = UART_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(huart->hdmarx);
+        if (RxDMAPos[ch] >= UART_RX_BUF_SIZE) RxDMAPos[ch] = 0;
+    }
+}
+
+bool UART_IsTxBusy(UART_Channel ch)
+{
+    if (ch >= UART_CHANNEL_MAX) return false;
+    
+    // Check if DMA is physically busy
+    if (uart_tbuf[ch].busy) return true;
+    
+    // Check if RingBuffer has pending data
+    if (uart_tbuf[ch].head != uart_tbuf[ch].tail) return true;
+    
     return false;
 }
 

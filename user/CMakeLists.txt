@@ -406,7 +406,7 @@ if (NOT DEFINED ENABLED_MODULES)
 
     elseif (TEST_CASE STREQUAL "uart_tests")
         list(APPEND ENABLED_MODULES uart)
-        set(TEST_SRC drivers/tests/uart_tests.c)
+        set(TEST_SRC drivers/communication/uart_tests.c)
 
     elseif (TEST_CASE STREQUAL "usb_serial")
         list(APPEND ENABLED_MODULES usb_serial delay)

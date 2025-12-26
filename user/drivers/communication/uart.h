@@ -8,6 +8,34 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined(STM32F0)
+    #include "stm32f0xx_hal.h"
+#elif defined(STM32F1) || defined(STM32F103xB) || defined(STM32F103xE)
+    #include "stm32f1xx_hal.h"
+#elif defined(STM32F2)
+    #include "stm32f2xx_hal.h"
+#elif defined(STM32F3)
+    #include "stm32f3xx_hal.h"
+#elif defined(STM32F4) || defined(STM32F405xx) || defined(STM32F407xx) || defined(STM32F429xx) || defined(STM32F446xx)
+    #include "stm32f4xx_hal.h"
+#elif defined(STM32F7)
+    #include "stm32f7xx_hal.h"
+#elif defined(STM32H7)
+    #include "stm32h7xx_hal.h"
+#elif defined(STM32L0)
+    #include "stm32l0xx_hal.h"
+#elif defined(STM32L1)
+    #include "stm32l1xx_hal.h"
+#elif defined(STM32L4)
+    #include "stm32l4xx_hal.h"
+#elif defined(STM32G0)
+    #include "stm32g0xx_hal.h"
+#elif defined(STM32G4)
+    #include "stm32g4xx_hal.h"
+#else
+    #include "main.h"
+#endif
+
 // Logic channel ID, managed by user application
 typedef uint8_t UART_Channel;
 
@@ -49,20 +77,15 @@ typedef struct {
 /* ============================================================================
  * UART Public API
  * ========================================================================= */
-// Register a hardware handle to a logic channel
-// huart should be (UART_HandleTypeDef *)
-void UART_Register(UART_Channel channel, void *huart);
-void UART_Init(void); // Optional: global init if needed, or remove. I will remove it to force registration.
-// Actually keeping UART_Init empty or removing it. Removing it is better.
-// But wait, the previous code had UART_Init calling HAL_UART_Receive_DMA. 
-// We should move that logic to UART_Register.
-// So let's just add UART_Register.
 
+void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart);
 void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
 void UART_SendString(UART_Channel channel, const char *str);
 uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);
 bool UART_Receive(UART_Channel channel, uint8_t *out, uint32_t timeout_ms);
+void UART_Flush(UART_Channel channel);
+bool UART_IsTxBusy(UART_Channel channel);
 uint32_t UART_GetRxOverrunCount(UART_Channel channel);
 void UART_Poll(void);
 uint32_t UART_GetTxDropCount(UART_Channel channel);
