@@ -14,6 +14,8 @@ static UART_TxRingBuf uart_tbuf[UART_CHANNEL_MAX];
 
 static UART_HandleTypeDef* UART_Handles[UART_CHANNEL_MAX] = {NULL};
 static UART_RxCallback RxCallbacks[UART_CHANNEL_MAX] = {NULL};
+static UART_TxCallback TxCallbacks[UART_CHANNEL_MAX] = {NULL};
+static UART_ErrorCallback ErrorCallbacks[UART_CHANNEL_MAX] = {NULL};
 
 /* ============================================================================
  * Internal Function Prototypes
@@ -212,6 +214,18 @@ void UART_SetRxCallback(UART_Channel channel, UART_RxCallback cb)
     RxCallbacks[channel] = cb;
 }
 
+void UART_SetTxCallback(UART_Channel channel, UART_TxCallback cb)
+{
+    if (channel >= UART_CHANNEL_MAX) return;
+    TxCallbacks[channel] = cb;
+}
+
+void UART_SetErrorCallback(UART_Channel channel, UART_ErrorCallback cb)
+{
+    if (channel >= UART_CHANNEL_MAX) return;
+    ErrorCallbacks[channel] = cb;
+}
+
 
 
 bool UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
@@ -267,6 +281,22 @@ bool UART_Read(UART_Channel ch, uint8_t *out)
     return UART_RingBuf_Pop(ch, out);
 }
 
+uint16_t UART_ReadBytes(UART_Channel ch, uint8_t *buf, uint16_t max_len)
+{
+    if (!buf || max_len == 0) return 0;
+    
+    UART_ProcessDMA(ch);
+    
+    uint16_t count = 0;
+    uint8_t byte;
+    
+    while (count < max_len && UART_RingBuf_Pop(ch, &byte)) {
+        buf[count++] = byte;
+    }
+    
+    return count;
+}
+
 bool UART_Receive(UART_Channel ch, uint8_t *out, uint32_t timeout_ms)
 {
     uint32_t start = HAL_GetTick();
@@ -313,6 +343,90 @@ bool UART_IsTxBusy(UART_Channel ch)
     __set_PRIMASK(primask);
     
     return busy || has_pending;
+}
+
+void UART_AbortTx(UART_Channel ch)
+{
+    if (ch >= UART_CHANNEL_MAX) return;
+    
+    UART_HandleTypeDef *huart = UART_GetHandle(ch);
+    if (!huart) return;
+    
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    
+    // Abort HAL DMA TX
+    HAL_UART_AbortTransmit(huart);
+    
+    // Reset TX Ring Buffer
+    uart_tbuf[ch].head = 0;
+    uart_tbuf[ch].tail = 0;
+    uart_tbuf[ch].busy = 0;
+    uart_tbuf[ch].inflight_len = 0;
+    
+    __set_PRIMASK(primask);
+}
+
+void UART_AbortRx(UART_Channel ch)
+{
+    if (ch >= UART_CHANNEL_MAX) return;
+    
+    UART_HandleTypeDef *huart = UART_GetHandle(ch);
+    if (!huart) return;
+    
+    UART_RingBuf *rb = &uart_rbuf[ch];
+    
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    
+    // Abort HAL DMA RX
+    HAL_UART_AbortReceive(huart);
+    
+    // Reset RX Ring Buffer
+    rb->head = 0;
+    rb->tail = 0;
+    RxDMAPos[ch] = 0;
+    
+    // Restart DMA
+    if (rb->dma_buf && rb->dma_size > 0) {
+        HAL_UART_Receive_DMA(huart, rb->dma_buf, rb->dma_size);
+    }
+    
+    __set_PRIMASK(primask);
+}
+
+uint16_t UART_GetTxPending(UART_Channel ch)
+{
+    if (ch >= UART_CHANNEL_MAX) return 0;
+    
+    UART_TxRingBuf *tb = &uart_tbuf[ch];
+    if (!tb->buf || tb->size == 0) return 0;
+    
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    
+    uint16_t pending;
+    if (tb->head >= tb->tail) {
+        pending = tb->head - tb->tail;
+    } else {
+        pending = tb->size - (tb->tail - tb->head);
+    }
+    
+    __set_PRIMASK(primask);
+    return pending;
+}
+
+uint16_t UART_GetTxFree(UART_Channel ch)
+{
+    if (ch >= UART_CHANNEL_MAX) return 0;
+    
+    UART_TxRingBuf *tb = &uart_tbuf[ch];
+    if (!tb->buf || tb->size == 0) return 0;
+    
+    // Free = Size - Pending - 1 (one slot always empty in ring buffer)
+    uint16_t pending = UART_GetTxPending(ch);
+    if (pending >= tb->size - 1) return 0;
+    return tb->size - 1 - pending;
 }
 
 uint32_t UART_GetRxOverrunCount(UART_Channel ch)
@@ -413,10 +527,18 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     tb->tail = (tb->tail + tb->inflight_len) % tb->size;
     tb->inflight_len = 0;
     tb->busy = 0;
+    
+    bool buffer_empty = (tb->head == tb->tail);
 
     __set_PRIMASK(primask);
 
+    // Try to send more if pending
     UART_TxKick((UART_Channel)ch);
+    
+    // Fire TX Complete callback if buffer is now empty
+    if (buffer_empty && TxCallbacks[ch]) {
+        TxCallbacks[ch]((UART_Channel)ch);
+    }
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -452,6 +574,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     }
     
     __set_PRIMASK(primask);
+    
+    // Fire Error callback (outside critical section)
+    if (ErrorCallbacks[ch]) {
+        ErrorCallbacks[ch]((UART_Channel)ch, error_flags);
+    }
 }
 
 void UART_Debug_Printf(const char *fmt, ...)
