@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 void USB_CDC_Init(void);
+void USB_CDC_Hack_Reset(void);
 
 uint32_t USB_CDC_Available(void);
 bool USB_CDC_Read(uint8_t *byte);

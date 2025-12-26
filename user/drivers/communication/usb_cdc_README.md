@@ -11,10 +11,17 @@ The USB Stack consumes a lot of memory during initialization and enumeration.
 *   **Bare Metal**: Increase `Stack_Size` in `startup_xxx.s` or Linker Settings (min **0x800**).
 *   **FreeRTOS**: If `MX_USB_DEVICE_Init()` is called inside a Task (e.g., `defaultTask`), you **MUST** increase that task's stack size to at least **512 words (2048 bytes)**. The default 128 words is NOT enough and will cause Silent HardFaults or Descriptor Request Failures.
 
-### 2. You MUST Manually Hook `usbd_cdc_if.c`
-CubeMX generates `USB_DEVICE/App/usbd_cdc_if.c`. By default, it throws away received data.
-**You must manually edit `CDC_Receive_FS` in that file** to call `USB_CDC_RxCallback`.
-See the **Integration Steps** section below for exact code.
+### 3. F103 (Blue Pill) Users: Re-enumeration Hack
+STM32F103 boards (like Blue Pill) often have a hard-wired 1.5k Pull-up on USB D+.
+This causes PC to think device is "always connected", leading to **Error 43/31** after reset.
+**Fix**: Call `USB_CDC_Hack_Reset()` at the very beginning of `main.c` (inside `USER CODE BEGIN Init`):
+```c
+/* USER CODE BEGIN Init */
+extern void USB_CDC_Hack_Reset(void);
+USB_CDC_Hack_Reset();
+/* USER CODE END Init */
+```
+*Note: This function is safe to call on other boards (it's #ifdef guarded for F103) but only mandatory for Blue Pill.*
 
 ---
 

@@ -79,7 +79,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  extern void USB_CDC_Hack_Reset(void);
+  USB_CDC_Hack_Reset();
   /* USER CODE END Init */
 
   /* Configure the system clock */

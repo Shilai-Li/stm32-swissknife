@@ -13,6 +13,9 @@
 // Expecting "usbd_cdc_if.h" to be available in include path for CDC_Transmit_FS
 // If user has not generated USB code, this will fail to link/compile.
 #include "usbd_cdc_if.h" 
+#include "usbd_core.h" // For USBD_STATE_CONFIGURED
+
+extern USBD_HandleTypeDef hUsbDeviceFS;
 
 /* ============================================================================
  * Internal Types
@@ -50,6 +53,27 @@ static bool RB_Pop(USB_RingBuf_t *rb, uint8_t *b) {
  * Public API
  * ========================================================================= */
 
+// Call this at the very beginning of main() for F103 boards
+void USB_CDC_Hack_Reset(void) {
+#if defined(STM32F103xB)
+    // Hack: Force USB Re-enumeration on F103 Blue Pill
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_12;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    
+    // 1. Take control of PA12 (USB D+)
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    // 2. Pull Low to simulate disconnect
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+    HAL_Delay(50); 
+    // 3. Release back to USB Peripheral
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET); 
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_12);
+#endif
+}
+
 void USB_CDC_Init(void) {
     rx_rb.head = 0;
     rx_rb.tail = 0;
@@ -83,6 +107,13 @@ void USB_CDC_Flush(void) {
 
 void USB_CDC_Send(const uint8_t *data, uint32_t len) {
     if (len == 0 || data == NULL) return;
+
+    // Check if USB is Configured (Enumerated by PC)
+    // If not, DROP the data. Sending now would lock up the TxState forever
+    // because no ISR will fire to clear it.
+    if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED) {
+        return; 
+    }
 
     // Direct call to ST CDC Driver
     // CDC_Transmit_FS is non-blocking BUT returns BUSY if previous transfer is not done.
