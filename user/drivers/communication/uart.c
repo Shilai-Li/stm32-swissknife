@@ -43,6 +43,24 @@ static int UART_HandleToChannel(UART_HandleTypeDef *huart)
     return -1;
 }
 
+// Helper to transfer a chunk from DMA buffer to Ring Buffer
+static void UART_TransferChunk(UART_RingBuf *rb, const uint8_t *dma_buf, uint16_t start_idx, uint16_t count)
+{
+    uint16_t head = rb->head;
+    uint16_t ring_size = rb->size;
+    
+    for (uint16_t i = 0; i < count; i++) {
+        uint16_t next = (head + 1) % ring_size;
+        if (next != rb->tail) {
+            rb->buf[head] = dma_buf[start_idx + i];
+            head = next;
+        } else {
+            rb->overrun_cnt++;
+        }
+    }
+    rb->head = head;
+}
+
 static void UART_ProcessDMA(UART_Channel ch) {
     UART_HandleTypeDef *huart = UART_GetHandle(ch);
     if (!huart || !huart->hdmarx) return;
@@ -66,41 +84,15 @@ static void UART_ProcessDMA(UART_Channel ch) {
         uint32_t primask = __get_PRIMASK();
         __disable_irq();
         
-        uint16_t head = rb->head;
-        
         if (dma_curr_pos > last_pos) {
-            for (uint16_t i = last_pos; i < dma_curr_pos; i++) {
-                uint16_t next = (head + 1) % ring_size;
-                if (next != rb->tail) {
-                    rb->buf[head] = dma_buf[i];
-                    head = next;
-                } else {
-                    rb->overrun_cnt++;
-                }
-            }
+            // One contiguous chunk
+            UART_TransferChunk(rb, dma_buf, last_pos, dma_curr_pos - last_pos);
         } else {
-            // Wrapped around end of DMA buffer
-            for (uint16_t i = last_pos; i < dma_size; i++) {
-                uint16_t next = (head + 1) % ring_size;
-                if (next != rb->tail) {
-                    rb->buf[head] = dma_buf[i];
-                    head = next;
-                } else {
-                    rb->overrun_cnt++;
-                }
-            }
-            for (uint16_t i = 0; i < dma_curr_pos; i++) {
-                uint16_t next = (head + 1) % ring_size;
-                if (next != rb->tail) {
-                    rb->buf[head] = dma_buf[i];
-                    head = next;
-                } else {
-                    rb->overrun_cnt++;
-                }
-            }
+            // Wrapped: End of buffer + Start of buffer
+            UART_TransferChunk(rb, dma_buf, last_pos, dma_size - last_pos);
+            UART_TransferChunk(rb, dma_buf, 0, dma_curr_pos);
         }
         
-        rb->head = head;
         RxDMAPos[ch] = dma_curr_pos;
         
         __set_PRIMASK(primask);
@@ -331,12 +323,16 @@ void UART_Poll(void)
             }
             
             // Re-start RX DMA if it stopped (e.g. after error)
+            // Critical section to prevent race with ISRs modifying state
+            uint32_t primask = __get_PRIMASK();
+            __disable_irq();
             if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
                  if (uart_rbuf[i].dma_buf && uart_rbuf[i].dma_size > 0) {
                     RxDMAPos[i] = 0;
                     HAL_UART_Receive_DMA(huart, uart_rbuf[i].dma_buf, uart_rbuf[i].dma_size);
                  }
             }
+            __set_PRIMASK(primask);
         }
         
         UART_ProcessDMA((UART_Channel)i);
