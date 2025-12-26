@@ -359,7 +359,7 @@ if (NOT DEFINED ENABLED_MODULES)
 
     # applications
     if (TEST_CASE STREQUAL "freertos_tests")
-        list(APPEND ENABLED_MODULES led uart) 
+        list(APPEND ENABLED_MODULES led uart usb_cdc) 
         set(TEST_SRC applications/freertos_test.c)
         
     elseif (TEST_CASE STREQUAL "i2c_master")
