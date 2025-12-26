@@ -15,14 +15,14 @@ void Log_String(const char *str) {
     USB_CDC_SendString(str);
 }
 
-// 任务句柄
+// Task handles
 TaskHandle_t xTestTaskHandle = NULL;
 TaskHandle_t xBlinkTaskHandle = NULL;
 
 // Task 1: Slow Logger
 void TestTask(void *pvParameters)
 {
-    // 等到USB枚举
+    // Wait for USB enumeration
     vTaskDelay(2000);
 
     for (;;)
@@ -35,7 +35,7 @@ void TestTask(void *pvParameters)
 // Task 2: Fast Logger
 void BlinkTask(void *pvParameters)
 {
-    // 稍微错开启动时间
+    // Slightly offset start time
     vTaskDelay(2500);
 
     for (;;)
@@ -47,17 +47,17 @@ void BlinkTask(void *pvParameters)
 
 void user_main(void)
 {
-    // 注入硬件句柄
+    // Inject hardware handles
     UART_Register(CH_DEBUG, &huart2);
-    // 初始化 USB
+    // Initialize USB
     USB_CDC_Init();
 
     UART_SendString(CH_DEBUG, "Starting FreeRTOS Scheduler... (Creating Tasks)\r\n");
 
-    // 创建任务 1
+    // Create task 1
     BaseType_t ret1 = xTaskCreate(TestTask, "TestTask", 128, NULL, 1, &xTestTaskHandle);
     
-    // 创建任务 2
+    // Create task 2
     BaseType_t ret2 = xTaskCreate(BlinkTask, "BlinkTask", 128, NULL, 1, &xBlinkTaskHandle);
 
     if (ret1 == pdPASS && ret2 == pdPASS)
