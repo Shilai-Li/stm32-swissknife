@@ -120,43 +120,22 @@ typedef struct {
 #define NOTE_D8  4699
 #define NOTE_DS8 4978
 
-/**
- * @brief Initialize Buzzer
- * @param h Handle
- * @param htim Timer Handle (e.g. &htim3) for Passive Buzzer. NULL for Active.
- * @param channel TIM_CHANNEL_x
- */
+// Initialize for Passive Buzzer (PWM)
 void Buzzer_Init(Buzzer_Handle_t *h, TIM_HandleTypeDef *htim, uint32_t channel);
 
-/**
- * @brief Use simple GPIO mode (Active Buzzer)
- */
+// Initialize for Active Buzzer (GPIO)
 void Buzzer_InitGPIO(Buzzer_Handle_t *h, GPIO_TypeDef *port, uint16_t pin);
 
-/**
- * @brief Play a single tone (Blocking or Non-blocking based on implementation, here is Setup only)
- * @param frequency Hz (e.g. 440). 0 to stop.
- * @param duration_ms Duration in ms. 0 for infinite (until stop called).
- */
+// Play Tone (Hz). Duration 0 = Infinite. Freq 0 = Silent.
 void Buzzer_Tone(Buzzer_Handle_t *h, uint32_t frequency, uint32_t duration_ms);
 
-/**
- * @brief Stop sound immediately
- */
+// Stop immediately
 void Buzzer_Stop(Buzzer_Handle_t *h);
 
-/**
- * @brief Polling function to handle duration timing (if not using RTOS/Interrupts)
- * @note  Call this in main loop (SysTick driven)
- */
+// Polling Loop (Call frequently)
 void Buzzer_Loop(Buzzer_Handle_t *h);
 
-/**
- * @brief Play a melody array (Blocking Implementation for simplicity)
- * @param melody Array of notes (frequency)
- * @param durations Array of durations
- * @param length Number of notes
- */
+// Play Melody (Blocking)
 void Buzzer_PlayMelody(Buzzer_Handle_t *h, const uint32_t *melody, const uint32_t *durations, uint32_t length);
 
 #ifdef __cplusplus

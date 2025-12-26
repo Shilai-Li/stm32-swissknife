@@ -190,6 +190,11 @@ define_module(key
     INCLUDES drivers/io
 )
 
+define_module(key_matrix
+    SOURCES drivers/io/key_matrix.c
+    INCLUDES drivers/io
+)
+
 define_module(ws2812
     SOURCES drivers/io/ws2812.c
     INCLUDES drivers/io
@@ -423,11 +428,18 @@ if (NOT DEFINED ENABLED_MODULES)
 
     # io
     elseif (TEST_CASE STREQUAL "buzzer_tests")
-        list(APPEND ENABLED_MODULES buzzer uart)
-        set(TEST_SRC drivers/tests/buzzer_tests.c)
+        list(APPEND ENABLED_MODULES buzzer uart usb_cdc)
+        set(TEST_SRC drivers/io/buzzer_tests.c)
     elseif (TEST_CASE STREQUAL "led_tests")
-        list(APPEND ENABLED_MODULES led)
-        set(TEST_SRC drivers/tests/led_tests.c)
+        list(APPEND ENABLED_MODULES led usb_cdc)
+        set(TEST_SRC drivers/io/led_tests.c)
+    elseif (TEST_CASE STREQUAL "key_tests")
+        list(APPEND ENABLED_MODULES key uart usb_cdc)
+        set(TEST_SRC drivers/io/key_tests.c)
+
+    elseif (TEST_CASE STREQUAL "key_matrix_tests")
+        list(APPEND ENABLED_MODULES key_matrix uart usb_cdc)
+        set(TEST_SRC drivers/io/key_matrix_tests.c)
     elseif (TEST_CASE STREQUAL "ws2812_tests")
         list(APPEND ENABLED_MODULES ws2812 uart)
         set(TEST_SRC drivers/tests/ws2812_tests.c)
