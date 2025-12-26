@@ -282,6 +282,10 @@ void UART_Flush(UART_Channel ch)
     if (!huart) return;
 
     UART_RingBuf *rb = &uart_rbuf[ch];
+    
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
     // Reset RingBuffer Pointers
     rb->head = 0;
     rb->tail = 0;
@@ -291,19 +295,24 @@ void UART_Flush(UART_Channel ch)
         RxDMAPos[ch] = rb->dma_size - __HAL_DMA_GET_COUNTER(huart->hdmarx);
         if (RxDMAPos[ch] >= rb->dma_size) RxDMAPos[ch] = 0;
     }
+    
+    __set_PRIMASK(primask);
 }
 
 bool UART_IsTxBusy(UART_Channel ch)
 {
     if (ch >= UART_CHANNEL_MAX) return false;
     
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
     // Check if DMA is physically busy
-    if (uart_tbuf[ch].busy) return true;
+    bool busy = uart_tbuf[ch].busy;
+    bool has_pending = (uart_tbuf[ch].head != uart_tbuf[ch].tail);
     
-    // Check if RingBuffer has pending data
-    if (uart_tbuf[ch].head != uart_tbuf[ch].tail) return true;
+    __set_PRIMASK(primask);
     
-    return false;
+    return busy || has_pending;
 }
 
 uint32_t UART_GetRxOverrunCount(UART_Channel ch)
@@ -317,10 +326,14 @@ void UART_Poll(void)
     for (int i = 0; i < UART_CHANNEL_MAX; i++) {
         UART_HandleTypeDef *huart = UART_GetHandle((UART_Channel)i);
         if (huart != NULL) {
+            // Critical section for TX busy flag check and reset
+            uint32_t pm1 = __get_PRIMASK();
+            __disable_irq();
             if (uart_tbuf[i].busy && huart->gState == HAL_UART_STATE_READY) {
                 uart_tbuf[i].busy = 0;
                 uart_tbuf[i].inflight_len = 0;
             }
+            __set_PRIMASK(pm1);
             
             // Re-start RX DMA if it stopped (e.g. after error)
             // Critical section to prevent race with ISRs modifying state
@@ -393,9 +406,15 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     UART_TxRingBuf *tb = &uart_tbuf[ch];
     if (tb->size == 0) return;
 
+    // Critical section for tail/busy update
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
     tb->tail = (tb->tail + tb->inflight_len) % tb->size;
     tb->inflight_len = 0;
     tb->busy = 0;
+
+    __set_PRIMASK(primask);
 
     UART_TxKick((UART_Channel)ch);
 }
@@ -407,6 +426,10 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     
     UART_RingBuf *rb = &uart_rbuf[ch];
     
+    // Critical section for error counter and DMA restart
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
     rb->error_cnt++;
 
     uint32_t error_flags = huart->ErrorCode;
@@ -427,6 +450,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
             HAL_UART_Receive_DMA(huart, rb->dma_buf, rb->dma_size);
          }
     }
+    
+    __set_PRIMASK(primask);
 }
 
 void UART_Debug_Printf(const char *fmt, ...)
