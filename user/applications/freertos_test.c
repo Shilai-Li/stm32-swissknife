@@ -61,9 +61,8 @@ void user_main(void)
     if (ret == pdPASS)
     {
         Log_String("Task created successfully.\r\n");
-
-        // 启动调度器 - 这通常不会返回，除非内存不足
-        vTaskStartScheduler();
+        // Scheduler is already running (started in main.c), so we just exit user_main.
+        // StartDefaultTask will then call vTaskDelete(NULL) and our new TestTask will continue.
     }
     else
     {

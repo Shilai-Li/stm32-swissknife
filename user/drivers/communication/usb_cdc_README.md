@@ -2,15 +2,31 @@
 
 This module wraps the STM32 USB CDC Middleware into a simple, Arduino-like Serial interface.
 
+## ⚠️ CRITICAL WARNINGS (READ FIRST!)
+
+If your USB is not working (enumerates failed, or can send but not receive), it is 99% due to one of these two reasons:
+
+### 1. You MUST Increase Stack Size
+The USB Stack consumes a lot of memory during initialization and enumeration.
+*   **Bare Metal**: Increase `Stack_Size` in `startup_xxx.s` or Linker Settings (min **0x800**).
+*   **FreeRTOS**: If `MX_USB_DEVICE_Init()` is called inside a Task (e.g., `defaultTask`), you **MUST** increase that task's stack size to at least **512 words (2048 bytes)**. The default 128 words is NOT enough and will cause Silent HardFaults or Descriptor Request Failures.
+
+### 2. You MUST Manually Hook `usbd_cdc_if.c`
+CubeMX generates `USB_DEVICE/App/usbd_cdc_if.c`. By default, it throws away received data.
+**You must manually edit `CDC_Receive_FS` in that file** to call `USB_CDC_RxCallback`.
+See the **Integration Steps** section below for exact code.
+
+---
+
 ## Prerequisites
 
 1.  **STM32CubeMX Configuration**:
     *   **Connectivity -> USB**: Enable "Device (FS)".
+    *   **Connectivity -> USB_OTG_FS**: Disable "VBUS Sensing" (PA9) if your board doesn't wire it to 5V (Common cause of "No Enumeration").
     *   **Middleware -> USB_DEVICE**: Select "Communication Device Class (VCP)".
     *   **Configuration -> NVIC**: Enable USB global interrupt.
-    *   **Heap/Stack**: Increase Heap Size (e.g., 0x400) and Stack Size (e.g., 0x400) in "Project Manager -> Linker Settings" slightly, as USB stack uses some memory.
 
-## Integration Steps (CRITICAL!)
+## Integration Steps
 
 **⚠️ You MUST perform these modifications manually. The driver will NOT receive data otherwise.**
 
@@ -54,6 +70,7 @@ In your `main.c`:
 *   Ensure `MX_USB_DEVICE_Init()` is called (CubeMX does this).
 *   Call `USB_CDC_Init()` to clear buffers.
 *   **Wait for Enumeration**: USB enumeration takes 1-2 seconds. `USB_CDC_Send` will fail (silent drop) if called before the PC recognizes the device.
+
 
 ---
 
