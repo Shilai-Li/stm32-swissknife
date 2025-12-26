@@ -185,7 +185,7 @@ define_module(led
     INCLUDES drivers/io
 )
 
-define_module(key
+define_module(key_single
     SOURCES drivers/io/key_single.c
     INCLUDES drivers/io
 )
@@ -203,6 +203,7 @@ define_module(ws2812
 define_module(xpt2046
     SOURCES drivers/io/xpt2046.c
     INCLUDES drivers/io
+    DEPENDS spi_soft
 )
 
 # ==========================================
@@ -430,22 +431,26 @@ if (NOT DEFINED ENABLED_MODULES)
     elseif (TEST_CASE STREQUAL "buzzer_tests")
         list(APPEND ENABLED_MODULES buzzer uart usb_cdc)
         set(TEST_SRC drivers/io/buzzer_tests.c)
+
     elseif (TEST_CASE STREQUAL "led_tests")
         list(APPEND ENABLED_MODULES led usb_cdc)
         set(TEST_SRC drivers/io/led_tests.c)
-    elseif (TEST_CASE STREQUAL "key_tests")
-        list(APPEND ENABLED_MODULES key uart usb_cdc)
+
+    elseif (TEST_CASE STREQUAL "key_single_tests")
+        list(APPEND ENABLED_MODULES key_single uart usb_cdc)
         set(TEST_SRC drivers/io/key_single_tests.c)
 
     elseif (TEST_CASE STREQUAL "key_matrix_tests")
         list(APPEND ENABLED_MODULES key_matrix uart usb_cdc)
         set(TEST_SRC drivers/io/key_matrix_tests.c)
+
     elseif (TEST_CASE STREQUAL "ws2812_tests")
-        list(APPEND ENABLED_MODULES ws2812 uart)
-        set(TEST_SRC drivers/tests/ws2812_tests.c)
+        list(APPEND ENABLED_MODULES ws2812 uart usb_cdc)
+        set(TEST_SRC drivers/io/ws2812_tests.c)
+
     elseif (TEST_CASE STREQUAL "xpt2046_tests")
-        list(APPEND ENABLED_MODULES xpt2046 uart)
-        set(TEST_SRC drivers/tests/xpt2046_tests.c)
+        list(APPEND ENABLED_MODULES xpt2046 spi_soft uart usb_cdc)
+        set(TEST_SRC drivers/io/xpt2046_tests.c)
     
     # motor
     elseif (TEST_CASE STREQUAL "bldc_motor_esc_encoder_tests")

@@ -4,6 +4,7 @@
  */
 
 #include "io/buzzer.h"
+#include "usart.h"
 #include "uart.h"
 #include "usb_cdc.h" // Add for build consistency
 #include <stdio.h>

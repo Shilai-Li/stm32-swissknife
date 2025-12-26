@@ -4,6 +4,7 @@
  */
 
 #include "io/key_matrix.h"
+#include "usart.h"
 #include "uart.h"
 #include "usb_cdc.h"
 #include <stdio.h>

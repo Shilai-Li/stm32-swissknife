@@ -8,21 +8,16 @@
 #ifndef __XPT2046_H
 #define __XPT2046_H
 
-#include "main.h"
+#include "interface/soft_spi.h"
 
-// --- Calibration Constants (Default for 2.4/2.8/3.5 inch screens) ---
-// User should call XPT2046_SetCalibration to override these
-#define XPT2046_X_MIN       200
-#define XPT2046_X_MAX       3900
-#define XPT2046_Y_MIN       200
-#define XPT2046_Y_MAX       3900
-
-// --- Screen Resolution (Logical) ---
-#define XPT2046_WIDTH       320
-#define XPT2046_HEIGHT      240
+// ... existing defines ...
 
 typedef struct {
-    SPI_HandleTypeDef *hspi;       // SPI Handle
+    // Communication Handle (One of these is active)
+    SPI_HandleTypeDef      *hspi;
+    Soft_SPI_HandleTypeDef *hsoftspi;
+    uint8_t                 UseHardSPI; // 1 = Hardware, 0 = Software Set automatically by Init
+
     GPIO_TypeDef      *CsPort;     // Chip Select Port
     uint16_t           CsPin;      // Chip Select Pin
     GPIO_TypeDef      *IrqPort;    // IRQ/PenIRQ Port (Optional, Input)
@@ -40,12 +35,15 @@ typedef struct {
 
 /* Function Prototypes */
 
-/**
- * @brief Initialize XPT2046 Driver
- */
+// Standard Init (Hardware SPI)
 void XPT2046_Init(XPT2046_HandleTypeDef *htouch, SPI_HandleTypeDef *hspi, 
                   GPIO_TypeDef *cs_port, uint16_t cs_pin,
                   GPIO_TypeDef *irq_port, uint16_t irq_pin);
+
+// Software SPI Init
+void XPT2046_Init_Soft(XPT2046_HandleTypeDef *htouch, Soft_SPI_HandleTypeDef *hsoftspi,
+                       GPIO_TypeDef *cs_port, uint16_t cs_pin,
+                       GPIO_TypeDef *irq_port, uint16_t irq_pin);
 
 /**
  * @brief Set Calibration and Resolution manually

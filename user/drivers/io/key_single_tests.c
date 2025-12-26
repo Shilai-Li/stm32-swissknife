@@ -3,7 +3,8 @@
  * @brief Test for Key Driver
  */
 
-#include "io/key.h"
+#include "key_single.h"
+#include "usart.h"
 #include "uart.h"
 #include "usb_cdc.h" // For build consistency (usbd_cdc_if)
 
