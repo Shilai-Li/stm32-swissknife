@@ -4,7 +4,7 @@
  * @details See .h file for Integration Guide
  */
 
-#include "usb_serial.h"
+#include "usb_cdc.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>

@@ -90,7 +90,7 @@ define_module(uart
 )
 
 define_module(usb_serial
-    SOURCES drivers/communication/usb_serial.c
+    SOURCES drivers/communication/usb_cdc.c
     INCLUDES drivers/communication
 )
 
@@ -410,7 +410,7 @@ if (NOT DEFINED ENABLED_MODULES)
 
     elseif (TEST_CASE STREQUAL "usb_serial")
         list(APPEND ENABLED_MODULES usb_serial delay)
-        set(TEST_SRC drivers/tests/usb_serial_tests.c)
+        set(TEST_SRC drivers/communication/usb_cdc_tests.c)
 
     elseif (TEST_CASE STREQUAL "w5500")
         list(APPEND ENABLED_MODULES w5500)
