@@ -1,9 +1,8 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    tim.h
-  * @brief   This file contains all the function prototypes for
-  *          the tim.c file
+  * @file           : fatfs_platform.h
+  * @brief          : fatfs_platform header file
   ******************************************************************************
   * @attention
   *
@@ -15,38 +14,14 @@
   * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
-  */
+*/
 /* USER CODE END Header */
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __TIM_H__
-#define __TIM_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
-
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-extern TIM_HandleTypeDef htim3;
-
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
-
-void MX_TIM3_Init(void);
-
-/* USER CODE BEGIN Prototypes */
-
-/* USER CODE END Prototypes */
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __TIM_H__ */
-
+#include "stm32f4xx_hal.h"
+/* Defines ------------------------------------------------------------------*/
+#define SD_PRESENT               ((uint8_t)0x01)  /* also in bsp_driver_sd.h */
+#define SD_NOT_PRESENT           ((uint8_t)0x00)  /* also in bsp_driver_sd.h */
+#define SD_DETECT_PIN         GPIO_PIN_8
+#define SD_DETECT_GPIO_PORT   GPIOA
+/* Prototypes ---------------------------------------------------------------*/
+uint8_t	BSP_PlatformIsDetected(void);
