@@ -474,60 +474,60 @@ if (NOT DEFINED ENABLED_MODULES)
 
     # sensor
     elseif (TEST_CASE STREQUAL "bh1750_tests")
-        list(APPEND ENABLED_MODULES bh1750 uart delay)
-        set(TEST_SRC drivers/tests/bh1750_tests.c)
+        list(APPEND ENABLED_MODULES bh1750 uart delay usb_cdc)
+        set(TEST_SRC drivers/sensor/bh1750_tests.c)
 
     elseif (TEST_CASE STREQUAL "dht11_tests")
-        list(APPEND ENABLED_MODULES delay dht11 uart) # UART for printing
-        set(TEST_SRC drivers/tests/dht11_tests.c)
+        list(APPEND ENABLED_MODULES delay dht11 uart usb_cdc) # UART for printing
+        set(TEST_SRC drivers/sensor/dht11_tests.c)
 
     elseif (TEST_CASE STREQUAL "ds18b20_tests")
-        list(APPEND ENABLED_MODULES ds18b20 uart delay)
-        set(TEST_SRC drivers/tests/ds18b20_tests.c)
+        list(APPEND ENABLED_MODULES ds18b20 uart delay usb_cdc)
+        set(TEST_SRC drivers/sensor/ds18b20_tests.c)
 
     elseif (TEST_CASE STREQUAL "hc_sr04_tests")
-        list(APPEND ENABLED_MODULES hc_sr04 uart delay)
-        set(TEST_SRC drivers/tests/hc_sr04_tests.c)
+        list(APPEND ENABLED_MODULES hc_sr04 uart delay usb_cdc)
+        set(TEST_SRC drivers/sensor/hc_sr04_tests.c)
 
     elseif (TEST_CASE STREQUAL "light_sensor_tests")
-        list(APPEND ENABLED_MODULES light_sensor uart delay)
-        set(TEST_SRC drivers/tests/light_sensor_tests.c)
+        list(APPEND ENABLED_MODULES light_sensor uart delay usb_cdc)
+        set(TEST_SRC drivers/sensor/light_sensor_tests.c)
 
     elseif (TEST_CASE STREQUAL "mpu6050_tests")
-        list(APPEND ENABLED_MODULES mpu6050 uart delay)
-        set(TEST_SRC drivers/tests/mpu6050_tests.c)
+        list(APPEND ENABLED_MODULES mpu6050 uart delay usb_cdc)
+        set(TEST_SRC drivers/sensor/mpu6050_tests.c)
 
     elseif (TEST_CASE STREQUAL "potentiometer_tests")
-        list(APPEND ENABLED_MODULES potentiometer uart delay)
-        set(TEST_SRC drivers/tests/potentiometer_tests.c)
+        list(APPEND ENABLED_MODULES potentiometer uart delay usb_cdc)
+        set(TEST_SRC drivers/sensor/potentiometer_tests.c)
 
     # storage
     elseif (TEST_CASE STREQUAL "at24cxx_tests")
-        list(APPEND ENABLED_MODULES at24cxx uart delay)
-        set(TEST_SRC drivers/tests/at24cxx_tests.c)
+        list(APPEND ENABLED_MODULES at24cxx uart delay usb_cdc)
+        set(TEST_SRC drivers/storage/at24cxx_tests.c)
 
     elseif (TEST_CASE STREQUAL "internal_flash_tests")
-        list(APPEND ENABLED_MODULES internal_flash uart)
-        set(TEST_SRC drivers/tests/internal_flash_tests.c)
+        list(APPEND ENABLED_MODULES internal_flash uart delay usb_cdc)
+        set(TEST_SRC drivers/storage/internal_flash_tests.c)
 
     elseif (TEST_CASE STREQUAL "sd_card_spi_tests")
-        list(APPEND ENABLED_MODULES sd_card_spi uart delay)
-        set(TEST_SRC drivers/tests/sd_card_spi_tests.c)
+        list(APPEND ENABLED_MODULES sd_card_spi uart delay usb_cdc)
+        set(TEST_SRC drivers/storage/sd_card_spi_tests.c)
 
     elseif (TEST_CASE STREQUAL "w25qxx_tests")
-        list(APPEND ENABLED_MODULES w25qxx uart delay)
-        set(TEST_SRC drivers/tests/w25qxx_tests.c)
+        list(APPEND ENABLED_MODULES w25qxx uart delay usb_cdc)
+        set(TEST_SRC drivers/storage/w25qxx_tests.c)
 
     # system
     elseif (TEST_CASE STREQUAL "delay_tests")
-        list(APPEND ENABLED_MODULES delay uart)
-        set(TEST_SRC drivers/tests/delay_tests.c)
-    elseif (TEST_CASE STREQUAL "rtc_tests")
-        list(APPEND ENABLED_MODULES rtc uart)
-        set(TEST_SRC drivers/tests/rtc_tests.c)
+        list(APPEND ENABLED_MODULES delay uart usb_cdc)
+        set(TEST_SRC drivers/system/delay_tests.c)
+    elseif (TEST_CASE STREQUAL "rtc_driver_tests")
+        list(APPEND ENABLED_MODULES rtc uart usb_cdc)
+        set(TEST_SRC drivers/system/rtc_driver_tests.c)
     elseif (TEST_CASE STREQUAL "watchdog_tests")
-        list(APPEND ENABLED_MODULES watchdog uart)
-        set(TEST_SRC drivers/tests/watchdog_tests.c)
+        list(APPEND ENABLED_MODULES watchdog uart usb_cdc)
+        set(TEST_SRC drivers/system/watchdog_tests.c)
 
 
 

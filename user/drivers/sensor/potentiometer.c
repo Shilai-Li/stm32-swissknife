@@ -1,9 +1,19 @@
-/**
- * @file potentiometer.c
- * @brief Potentiometer Driver Implementation
- */
-
 #include "potentiometer.h"
+
+static void Pot_HandleError(Pot_Handle_t *h) {
+    if (h) {
+        h->error_cnt++;
+        if (h->error_cb) {
+            h->error_cb(h);
+        }
+    }
+}
+
+void Pot_SetErrorCallback(Pot_Handle_t *handle, Pot_ErrorCallback cb) {
+    if (handle) {
+        handle->error_cb = cb;
+    }
+}
 
 void Pot_Init(Pot_Handle_t *h, const Pot_Config_t *config) {
     if (!h || !config) return;
@@ -15,17 +25,30 @@ void Pot_Init(Pot_Handle_t *h, const Pot_Config_t *config) {
     
     h->last_raw = 0;
     h->last_filtered = 0;
+    
+    h->error_cnt = 0;
+    h->success_cnt = 0;
+    h->error_cb = NULL;
 }
 
 uint16_t Pot_Update(Pot_Handle_t *h) {
     if (!h || !h->config.hadc) return 0;
     
+    ADC_HandleTypeDef *hadc = (ADC_HandleTypeDef*)h->config.hadc;
+    
     // 1. Hardware Read (Simple Poll)
-    HAL_ADC_Start(h->config.hadc);
-    HAL_ADC_PollForConversion(h->config.hadc, 10);
-    uint16_t raw = (uint16_t)HAL_ADC_GetValue(h->config.hadc);
+    HAL_ADC_Start(hadc);
+    
+    HAL_StatusTypeDef status = HAL_ADC_PollForConversion(hadc, 10);
+    if (status != HAL_OK) {
+        Pot_HandleError(h);
+        return h->last_filtered; // Return last known good value
+    }
+    
+    uint16_t raw = (uint16_t)HAL_ADC_GetValue(hadc);
     
     h->last_raw = raw;
+    h->success_cnt++;
     
     // 2. Filter
     uint16_t val = MovingAverage_Update(&h->filter, raw);
