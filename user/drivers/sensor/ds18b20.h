@@ -1,22 +1,6 @@
 /**
  * @file ds18b20.h
  * @brief DS18B20 OneWire Temperature Sensor Driver
- * 
- * =================================================================================
- *                       >>> INTEGRATION GUIDE <<<
- * =================================================================================
- * 1. CubeMX Config (GPIO):
- *    - Select a Pin (e.g. PB1).
- *    - Mode: Output Open Drain (Strongly Recommended).
- *    - Pull-up: None (External 4.7k Pull-up Resistor required).
- *    - Speed: Medium/High.
- * 
- * 2. Dependencies:
- *    - Requires 'delay.h' for Delay_us().
- * 
- * 3. Wiring:
- *    - DS18B20 DQ pin -> GPIO (with 4.7k to 3.3V).
- * =================================================================================
  */
 
 #ifndef DS18B20_H
@@ -32,30 +16,45 @@ extern "C" {
 /**
  * @brief DS18B20 Handle
  */
-typedef struct {
+/* Forward declaration */
+typedef struct DS18B20_Handle_s DS18B20_Handle_t;
+typedef void (*DS18B20_ErrorCallback)(DS18B20_Handle_t *dev);
+
+struct DS18B20_Handle_s {
     GPIO_TypeDef *port;
     uint16_t pin;
+    /* TIM handle removed: uses DWT Delay_us() */
+    
     float last_temp;
-    bool error;
-} DS18B20_Handle_t;
+    
+    /* Stats */
+    volatile uint32_t error_cnt;
+    volatile uint32_t success_cnt;
+    volatile uint32_t crc_error_cnt;
+    
+    /* Callback */
+    DS18B20_ErrorCallback error_cb;
+};
 
 /**
- * @brief Initialize the DS18B20 handle (Setups GPIO if needed, but usually GPIO Init is done by CubeMX or manually)
- * @note  This driver assumes you have initialized the 'delay' driver.
+ * @brief Initialize the DS18B20 handle
  */
 void DS18B20_Init(DS18B20_Handle_t *handle, GPIO_TypeDef *port, uint16_t pin);
 
 /**
- * @brief Start Temperature Conversion (Non-blocking usually, but this function just sends command)
- * @details After calling this, wait 750ms for 12-bit conversion.
+ * @brief Start Temperature Conversion
  */
 void DS18B20_StartConversion(DS18B20_Handle_t *handle);
 
 /**
  * @brief Read Temperature
- * @return Temperature in Celsius. Returns -999.0f on error.
  */
 float DS18B20_ReadTemp(DS18B20_Handle_t *handle);
+
+/**
+ * @brief Set Error Callback
+ */
+void DS18B20_SetErrorCallback(DS18B20_Handle_t *handle, DS18B20_ErrorCallback cb);
 
 /**
  * @brief Sync Wrapper: Start -> Delay(750ms) -> Read
