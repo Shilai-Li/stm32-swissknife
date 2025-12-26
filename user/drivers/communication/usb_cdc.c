@@ -101,35 +101,63 @@ bool USB_CDC_Receive(uint8_t *out, uint32_t timeout_ms) {
 }
 
 void USB_CDC_Flush(void) {
+    // Critical Section to prevent race condition with USB ISR
+    uint32_t primask_bit = __get_PRIMASK();
+    __disable_irq();
     rx_rb.head = 0;
     rx_rb.tail = 0;
+    rx_rb.overrun_cnt = 0;
+    __set_PRIMASK(primask_bit);
 }
 
-void USB_CDC_Send(const uint8_t *data, uint32_t len) {
-    if (len == 0 || data == NULL) return;
+bool USB_CDC_Send(const uint8_t *data, uint32_t len) {
+    if (len == 0 || data == NULL) return false;
 
     // Check if USB is Configured (Enumerated by PC)
-    // If not, DROP the data. Sending now would lock up the TxState forever
-    // because no ISR will fire to clear it.
     if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED) {
-        return; 
+        return false; 
     }
 
     // Direct call to ST CDC Driver
     // CDC_Transmit_FS is non-blocking BUT returns BUSY if previous transfer is not done.
-    // We add a small timeout retry mechanism.
     
+    // Check if we are called from an ISR to avoid strictly time-based HAL_Delay/Ticker loops
+    // which might fail if SysTick is preempted.
+    bool is_isr = (SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) != 0;
+
     uint32_t start = HAL_GetTick();
     uint8_t result;
     
+    // Limits avoiding infinite loops in ISR
+    volatile uint32_t isr_loop_limit = 0; 
+    const uint32_t ISR_LIMIT_MAX = 0xFFFF;
+
     do {
         result = CDC_Transmit_FS((uint8_t*)data, (uint16_t)len);
-        if (result == USBD_OK) return;
         
-        // Wait 1ms before retry to let USB work
-        // Note: DON'T use HAL_Delay inside interrupts, but this is usually main loop
-        // If in Interrupt context, this loop might block briefly.
-    } while ((HAL_GetTick() - start) < 50); // 50ms Timeout
+        if (result == USBD_OK) return true;
+        
+        if (result == USBD_BUSY) {
+            if (is_isr) {
+                // In ISR, we cannot rely on HAL_GetTick() updating if interrupt priority > SysTick.
+                // Use a simple counter limit.
+                if (++isr_loop_limit > ISR_LIMIT_MAX) {
+                    return false;
+                }
+            } else {
+                // In Thread mode, use reliable time-based timeout
+                if ((HAL_GetTick() - start) > 50) { // 50ms Timeout
+                    return false;
+                }
+            }
+        } else {
+            // USBD_FAIL or USBD_BUSY is handled, anything else fail
+            return false;
+        }
+
+    } while (result == USBD_BUSY);
+    
+    return false;
 }
 
 void USB_CDC_SendString(const char *str) {
