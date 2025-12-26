@@ -3,52 +3,71 @@
  * @brief Test XPT2046 Touch Screen (Dual Mode SPI)
  */
 
-#include "io/xpt2046.h"
-#include "interface/soft_spi.h"
+#include "main.h"
+#include "xpt2046.h"
+#include "soft_spi.h"
+#include "usart.h"
 #include "uart.h"
 #include "usb_cdc.h"
 #include <stdio.h>
 
-extern SPI_HandleTypeDef hspi1; // Adjust manually if testing Hard SPI
-
 #define CH_DEBUG 2
 
-// Choose Mode for Test
-#define USE_HARDWARE_SPI 0
+//#define USE_HARDWARE_SPI 0
+#define USE_HARDWARE_SPI 1
+
+#if USE_HARDWARE_SPI
+extern SPI_HandleTypeDef hspi1; 
+#endif
+
+// XPT2046_HandleTypeDef touch; // Define later
 
 XPT2046_HandleTypeDef touch;
 Soft_SPI_HandleTypeDef soft_spi;
+
+// Wrapper for Hardware SPI to match interface
+uint8_t HAL_SPI_Wrapper(void *handle, uint8_t *tx, uint8_t *rx, uint16_t size, uint32_t timeout) {
+    // HAL returns HAL_StatusTypeDef (0=OK)
+#if USE_HARDWARE_SPI
+    return (uint8_t)HAL_SPI_TransmitReceive((SPI_HandleTypeDef*)handle, tx, rx, size, timeout);
+#else
+    return 1; // Error
+#endif
+}
+
+// Wrapper for Software SPI to match interface
+uint8_t Soft_SPI_Wrapper(void *handle, uint8_t *tx, uint8_t *rx, uint16_t size, uint32_t timeout) {
+    // Soft SPI returns uint8_t
+    return Soft_SPI_TransmitReceive((Soft_SPI_HandleTypeDef*)handle, tx, rx, size, timeout);
+}
 
 void user_main(void) {
     UART_Register(CH_DEBUG, &huart2);
     // UART_Init();
     
-    UART_SendString(CH_DEBUG, "\r\n=== XPT2046 Touch Test ===\r\n");
+    UART_SendString(CH_DEBUG, "\r\n=== XPT2046 Touch Test (Decoupled) ===\r\n");
 
 #if USE_HARDWARE_SPI
     UART_SendString(CH_DEBUG, "Mode: Hardware SPI\r\n");
-    // Init Hardware SPI (Assume hspi1 is configured in CubeMX)
-    // CS: PA4, IRQ: PA1 (Example)
-    XPT2046_Init(&touch, &hspi1, GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_1);
+    // Init Hardware SPI
+    XPT2046_Init(&touch, &hspi1, HAL_SPI_Wrapper, 
+                 GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_1);
 
 #else
     UART_SendString(CH_DEBUG, "Mode: Software SPI\r\n");
     // Init Software SPI
-    // SCK: PA5, MOSI: PA7, MISO: PA6
-    // Note: Soft_SPI_Init doesn't need a handle in struct v1, it initializes pins.
-    // Let's check Soft_SPI_Init signature: 
-    // void Soft_SPI_Init(Soft_SPI_HandleTypeDef *hspi, sck_port, sck_pin, mosi_port, mosi_pin, miso_port, miso_pin, mode);
-    
     Soft_SPI_Init(&soft_spi, 
                   GPIOA, GPIO_PIN_5, // SCK
                   GPIOA, GPIO_PIN_7, // MOSI
                   GPIOA, GPIO_PIN_6, // MISO
                   SOFT_SPI_MODE_0);  
                   
-    // Init Touch with Soft SPI
-    // CS: PA4, IRQ: PA1
-    XPT2046_Init_Soft(&touch, &soft_spi, GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_1);
+    // Init Touch with Soft SPI Wrapper
+    XPT2046_Init(&touch, &soft_spi, Soft_SPI_Wrapper, 
+                 GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_1);
 #endif
+    
+    // ... Rest same ...
 
     // Calibration (Optional, use defaults)
     // XPT2046_SetCalibration(&touch, 320, 240, 200, 3900, 200, 3900);

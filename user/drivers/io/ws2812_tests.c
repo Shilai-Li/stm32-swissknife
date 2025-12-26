@@ -4,6 +4,7 @@
  */
 
 #include "io/ws2812.h"
+#include "usart.h"
 #include "uart.h"
 #include "usb_cdc.h"
 #include "tim.h" // For htimx
@@ -15,7 +16,7 @@ WS2812_HandleTypeDef hws;
 
 // External Timer Handle (Depends on CubeMX Config)
 // Assuming TIM2 CH1 for Nucleo/F446
-extern TIM_HandleTypeDef htim2; 
+extern TIM_HandleTypeDef htim3;
 // extern TIM_HandleTypeDef htim1; // F103 common
 
 void user_main(void)
@@ -29,7 +30,7 @@ void user_main(void)
 
     // Initialize (8 LEDs on TIM2 Channel 1)
     // Adjust TIM and Channel according to your hardware wiring!
-    WS2812_Init(&hws, &htim2, TIM_CHANNEL_1, 8);
+    WS2812_Init(&hws, &htim3, TIM_CHANNEL_1, 8);
     
     UART_SendString(CH_DEBUG, "Running Rainbow Loop...\r\n");
     

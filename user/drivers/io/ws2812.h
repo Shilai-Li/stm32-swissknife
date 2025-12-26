@@ -1,3 +1,11 @@
+#ifndef __WS2812_H
+#define __WS2812_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "main.h"
 // --- Configuration ---
 #define WS2812_MAX_LEDS     64
 
@@ -34,5 +42,9 @@ void WS2812_Show(WS2812_HandleTypeDef *hws);
 
 // DMA Callback (Call from HAL_TIM_PWM_PulseFinishedCallback)
 void WS2812_DmaCallback(WS2812_HandleTypeDef *hws);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __WS2812_H

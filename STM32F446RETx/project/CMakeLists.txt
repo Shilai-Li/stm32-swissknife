@@ -38,7 +38,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # Test Case Selection
-set(TEST_CASE "ws2812_tests" CACHE STRING "Select which test to run" FORCE)
+set(TEST_CASE "xpt2046_tests" CACHE STRING "Select which test to run" FORCE)
 message("Selected Test Case: ${TEST_CASE}")
 
 # Add user defined directory

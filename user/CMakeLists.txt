@@ -203,7 +203,6 @@ define_module(ws2812
 define_module(xpt2046
     SOURCES drivers/io/xpt2046.c
     INCLUDES drivers/io
-    DEPENDS spi_soft
 )
 
 # ==========================================

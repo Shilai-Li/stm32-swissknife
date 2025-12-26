@@ -1,75 +1,67 @@
-/**
- * @file xpt2046.h
- * @brief XPT2046 Touch Screen Controller Driver Header File
- * @author Standard Implementation
- * @date 2024
- */
-
 #ifndef __XPT2046_H
 #define __XPT2046_H
 
-#include "interface/soft_spi.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// ... existing defines ...
+#include "main.h"
+
+// --- Constants ---
+#define XPT2046_X_MIN       200
+#define XPT2046_X_MAX       3900
+#define XPT2046_Y_MIN       200
+#define XPT2046_Y_MAX       3900
+#define XPT2046_WIDTH       320
+#define XPT2046_HEIGHT      240
+
+// IO Interface Signature
+// Returns 0 on Success, non-zero on Error (matching HAL_OK=0)
+typedef uint8_t (*XPT_TransmitReceive_Func)(void *handle, uint8_t *tx_data, uint8_t *rx_data, uint16_t size, uint32_t timeout);
 
 typedef struct {
-    // Communication Handle (One of these is active)
-    SPI_HandleTypeDef      *hspi;
-    Soft_SPI_HandleTypeDef *hsoftspi;
-    uint8_t                 UseHardSPI; // 1 = Hardware, 0 = Software Set automatically by Init
+    // Generic IO
+    void                    *handle;    // Defines hardware context (SPI_Handle or Soft_SPI_Handle)
+    XPT_TransmitReceive_Func spi_func;  // Function to perform transfer
 
-    GPIO_TypeDef      *CsPort;     // Chip Select Port
-    uint16_t           CsPin;      // Chip Select Pin
-    GPIO_TypeDef      *IrqPort;    // IRQ/PenIRQ Port (Optional, Input)
-    uint16_t           IrqPin;     // IRQ/PenIRQ Pin
+    GPIO_TypeDef      *CsPort;     
+    uint16_t           CsPin;      
+    GPIO_TypeDef      *IrqPort;    
+    uint16_t           IrqPin;     
     
-    // Calibration Data
-    uint16_t           x_min;
-    uint16_t           x_max;
-    uint16_t           y_min;
-    uint16_t           y_max;
-    uint16_t           width;
-    uint16_t           height;
-    uint8_t            Rotation;   // 0, 1, 2, 3 (Matches LCD Rotation)
+    // Calibration
+    uint16_t           x_min, x_max;
+    uint16_t           y_min, y_max;
+    uint16_t           width, height;
+    uint8_t            Rotation;   
 } XPT2046_HandleTypeDef;
 
-/* Function Prototypes */
-
-// Standard Init (Hardware SPI)
-void XPT2046_Init(XPT2046_HandleTypeDef *htouch, SPI_HandleTypeDef *hspi, 
+// Generic Init
+void XPT2046_Init(XPT2046_HandleTypeDef *htouch, 
+                  void *spi_handle, XPT_TransmitReceive_Func spi_func,
                   GPIO_TypeDef *cs_port, uint16_t cs_pin,
                   GPIO_TypeDef *irq_port, uint16_t irq_pin);
 
-// Software SPI Init
-void XPT2046_Init_Soft(XPT2046_HandleTypeDef *htouch, Soft_SPI_HandleTypeDef *hsoftspi,
-                       GPIO_TypeDef *cs_port, uint16_t cs_pin,
-                       GPIO_TypeDef *irq_port, uint16_t irq_pin);
+// Removing specific Soft/Hard Init functions as they are now unified
+// void XPT2046_Init_Soft(...) -> Removed
 
-/**
- * @brief Set Calibration and Resolution manually
- */
+// Set Calibration
 void XPT2046_SetCalibration(XPT2046_HandleTypeDef *htouch, 
                             uint16_t width, uint16_t height,
                             uint16_t x_min, uint16_t x_max, 
                             uint16_t y_min, uint16_t y_max);
 
-/**
- * @brief Set Rotation (0-3) to match LCD orientation
- */
+// Set Rotation (0-3)
 void XPT2046_SetRotation(XPT2046_HandleTypeDef *htouch, uint8_t rotation);
 
-/**
- * @brief Check if screen is currently touched
- * @return 1 if touched, 0 if not (Based on IRQ Pin if available, or Dummy Read)
- */
+// Check if touched (Polling IRQ Pin)
 uint8_t XPT2046_IsTouched(XPT2046_HandleTypeDef *htouch);
 
-/**
- * @brief Get Touch Coordinates (Physical -> Logical mapping)
- * @param x Pointer to store X coordinate
- * @param y Pointer to store Y coordinate
- * @return 1 if valid touch read, 0 if no touch or error
- */
+// Get Coordinates (Returns 1 if valid)
 uint8_t XPT2046_GetCoordinates(XPT2046_HandleTypeDef *htouch, uint16_t *x, uint16_t *y);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __XPT2046_H

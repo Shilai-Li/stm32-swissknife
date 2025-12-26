@@ -6,6 +6,9 @@
  */
 
 #include "xpt2046.h"
+// No external dependencies! (except HAL GPIO in main.h)
+// We need HAL definitions. Usually main.h -> stm32f4xx_hal.h is enough.
+// If SPI_HandleTypeDef is missing, check HAL_SPI_MODULE_ENABLED in stm32f4xx_hal_conf.h
 
 // Command Definitions
 // Bit 7: Start Bit (Always 1)
@@ -22,15 +25,9 @@ static uint16_t XPT2046_ReadRaw(XPT2046_HandleTypeDef *htouch, uint8_t cmd) {
     
     HAL_GPIO_WritePin(htouch->CsPort, htouch->CsPin, GPIO_PIN_RESET);
     
-    if (htouch->UseHardSPI) {
-        if (htouch->hspi) {
-            HAL_SPI_TransmitReceive(htouch->hspi, tx, rx, 3, 100);
-        }
-    } else {
-        // Software SPI
-        if (htouch->hsoftspi) {
-            Soft_SPI_TransmitReceive(htouch->hsoftspi, tx, rx, 3, 100);
-        }
+    // Call Generic Interface
+    if (htouch->spi_func && htouch->handle) {
+         htouch->spi_func(htouch->handle, tx, rx, 3, 100);
     }
     
     HAL_GPIO_WritePin(htouch->CsPort, htouch->CsPin, GPIO_PIN_SET);
@@ -60,34 +57,13 @@ static uint16_t XPT2046_ReadFiltered(XPT2046_HandleTypeDef *htouch, uint8_t cmd)
     return buffer[READ_TIMES/2];
 }
 
-void XPT2046_Init(XPT2046_HandleTypeDef *htouch, SPI_HandleTypeDef *hspi, 
+void XPT2046_Init(XPT2046_HandleTypeDef *htouch, 
+                  void *spi_handle, XPT_TransmitReceive_Func spi_func,
                   GPIO_TypeDef *cs_port, uint16_t cs_pin,
                   GPIO_TypeDef *irq_port, uint16_t irq_pin) 
 {
-    htouch->UseHardSPI = 1;
-    htouch->hspi = hspi;
-    htouch->hsoftspi = NULL;
-    
-    htouch->CsPort = cs_port; htouch->CsPin = cs_pin;
-    htouch->IrqPort = irq_port; htouch->IrqPin = irq_pin;
-    
-    // Defaults
-    htouch->width = XPT2046_WIDTH;
-    htouch->height = XPT2046_HEIGHT;
-    htouch->x_min = XPT2046_X_MIN; htouch->x_max = XPT2046_X_MAX;
-    htouch->y_min = XPT2046_Y_MIN; htouch->y_max = XPT2046_Y_MAX;
-    htouch->Rotation = 0;
-    
-    HAL_GPIO_WritePin(htouch->CsPort, htouch->CsPin, GPIO_PIN_SET);
-}
-
-void XPT2046_Init_Soft(XPT2046_HandleTypeDef *htouch, Soft_SPI_HandleTypeDef *hsoftspi,
-                       GPIO_TypeDef *cs_port, uint16_t cs_pin,
-                       GPIO_TypeDef *irq_port, uint16_t irq_pin)
-{
-    htouch->UseHardSPI = 0;
-    htouch->hspi = NULL;
-    htouch->hsoftspi = hsoftspi;
+    htouch->handle = spi_handle;
+    htouch->spi_func = spi_func;
     
     htouch->CsPort = cs_port; htouch->CsPin = cs_pin;
     htouch->IrqPort = irq_port; htouch->IrqPin = irq_pin;
