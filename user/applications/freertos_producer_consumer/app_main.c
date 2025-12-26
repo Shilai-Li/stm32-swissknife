@@ -10,10 +10,18 @@ QueueHandle_t xCmdQueue = NULL;
 TaskHandle_t xProducerHandle = NULL;
 TaskHandle_t xConsumerHandle = NULL;
 
+// Buffers for UART
+static uint8_t u_rx_dma[64];
+static uint8_t u_rx_ring[256];
+static uint8_t u_tx_ring[512]; // Bigger TX for logs
+
 void app_main(void)
 {
     // Inject hardware handles
-    UART_Register(CH_DEBUG, &huart2);
+    UART_Register(CH_DEBUG, &huart2, 
+                  u_rx_dma, sizeof(u_rx_dma),
+                  u_rx_ring, sizeof(u_rx_ring),
+                  u_tx_ring, sizeof(u_tx_ring));
     
     // Initialize Drivers
     USB_CDC_Init();

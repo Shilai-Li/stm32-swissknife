@@ -32,10 +32,18 @@ void print_stats(void) {
     Test_Printf("-----------------------\r\n");
 }
 
+// Define Buffers for Channel DEBUG
+static uint8_t rx_dma_buf[64]; // Small DMA buffer
+static uint8_t rx_ring_buf[256]; // Large software Ring Buffer
+static uint8_t tx_ring_buf[256]; // TX Buffer
+
 void app_main(void)
 {
     // 1. Register Logic Channel 0 -> Hardware UART2
-    UART_Register(CH_DEBUG, &huart2);
+    UART_Register(CH_DEBUG, &huart2, 
+                  rx_dma_buf, sizeof(rx_dma_buf),
+                  rx_ring_buf, sizeof(rx_ring_buf),
+                  tx_ring_buf, sizeof(tx_ring_buf));
     
     // 2. Initialize USB CDC
     USB_CDC_Init();

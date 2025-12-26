@@ -44,13 +44,7 @@ typedef uint8_t UART_Channel;
 /* ============================================================================
  * UART Configuration
  * ========================================================================= */
-#ifndef UART_RX_BUF_SIZE
-#define UART_RX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
-#endif
-
-#ifndef UART_TX_BUF_SIZE
-#define UART_TX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
-#endif
+/* Buffer sizes are now dynamic, configured in UART_Register */
 
 // UART_DEBUG_CHANNEL should be defined by user if they use UART_Debug_Printf, 
 // usually as a macro in main.h or here if hardcoded. Defaulting to 0.
@@ -58,11 +52,14 @@ typedef uint8_t UART_Channel;
 #define UART_DEBUG_CHANNEL 0
 #endif
 
+
 typedef struct {
-    uint8_t buf[UART_RX_BUF_SIZE];
+    uint8_t *buf;
+    uint16_t size;
+    uint8_t *dma_buf;      // Pointer to DMA buffer
+    uint16_t dma_size;     // Size of DMA buffer
     volatile uint16_t head;
     volatile uint16_t tail;
-    uint8_t rx_byte;
     volatile uint32_t overrun_cnt;  // RX Software Buffer Overflow
     volatile uint32_t tx_dropped;   // TX Buffer Overflow (Send failed)
     volatile uint32_t error_cnt;    // Total Hardware Errors
@@ -74,6 +71,15 @@ typedef struct {
     volatile uint8_t error_flag;    // Error flag for recovery in main loop
 } UART_RingBuf;
 
+typedef struct {
+    uint8_t *buf;
+    uint16_t size;
+    volatile uint16_t head;
+    volatile uint16_t tail;
+    volatile uint8_t busy;
+    uint16_t inflight_len;
+} UART_TxRingBuf;
+
 /* ============================================================================
  * UART Public API
  * ========================================================================= */
@@ -81,7 +87,10 @@ typedef struct {
 // Callback type for RX Data Available
 typedef void (*UART_RxCallback)(UART_Channel channel);
 
-void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart);
+void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart, 
+                   uint8_t *rx_dma_buf, uint16_t rx_dma_size,
+                   uint8_t *rx_ring_buf, uint16_t rx_ring_size,
+                   uint8_t *tx_ring_buf, uint16_t tx_ring_size);
 void UART_SetRxCallback(UART_Channel channel, UART_RxCallback cb);
 bool UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
 void UART_SendString(UART_Channel channel, const char *str);

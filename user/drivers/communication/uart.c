@@ -4,16 +4,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-static uint8_t RxDMABuf[UART_CHANNEL_MAX][UART_RX_BUF_SIZE];
+// RxDMABuf is now dynamic, stored in uart_rbuf[ch].dma_buf
 static volatile uint16_t RxDMAPos[UART_CHANNEL_MAX];
 
-typedef struct {
-    uint8_t buf[UART_TX_BUF_SIZE];
-    volatile uint16_t head;
-    volatile uint16_t tail;
-    volatile uint8_t busy;
-    uint16_t inflight_len;
-} UART_TxRingBuf;
+// UART_RingBuf and UART_TxRingBuf are defined in uart.h
 
 static UART_RingBuf uart_rbuf[UART_CHANNEL_MAX];
 static UART_TxRingBuf uart_tbuf[UART_CHANNEL_MAX];
@@ -54,10 +48,17 @@ static void UART_ProcessDMA(UART_Channel ch) {
     if (!huart || !huart->hdmarx) return;
 
     UART_RingBuf *rb = &uart_rbuf[ch];
-    uint8_t *dma_buf = RxDMABuf[ch];
+    if (!rb->buf || !rb->dma_buf) return; // Safety check
+
+    uint16_t dma_size = rb->dma_size;
+    uint16_t ring_size = rb->size;
+    if (dma_size == 0 || ring_size == 0) return;
+
+    uint8_t *dma_buf = rb->dma_buf;
     
-    uint16_t dma_curr_pos = UART_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(huart->hdmarx);
-    if (dma_curr_pos >= UART_RX_BUF_SIZE) dma_curr_pos = 0;
+    // Calculate current DMA position
+    uint16_t dma_curr_pos = dma_size - __HAL_DMA_GET_COUNTER(huart->hdmarx);
+    if (dma_curr_pos >= dma_size) dma_curr_pos = 0;
 
     uint16_t last_pos = RxDMAPos[ch];
 
@@ -65,18 +66,11 @@ static void UART_ProcessDMA(UART_Channel ch) {
         uint32_t primask = __get_PRIMASK();
         __disable_irq();
         
-        // Re-read inside critical to be sure? No, the dma_curr_pos is snapshot. 
-        // We need to protect rb->head and rb->tail updates if they are shared.
-        // Actually, rb->tail is updated by CONSUMER (Pop), rb->head is updated by PRODUCER (Here).
-        // Standard RingBuf: Single Producer Single Consumer is wait-free safe for head/tail SW updates.
-        // BUT: RxDMAPos is static volatile shared potentially if called from multiple contexts (e.g. Poll and IRQ).
-        // And rb->head update must be atomic vis-a-vis the read.
-
         uint16_t head = rb->head;
         
         if (dma_curr_pos > last_pos) {
             for (uint16_t i = last_pos; i < dma_curr_pos; i++) {
-                uint16_t next = (head + 1) % UART_RX_BUF_SIZE;
+                uint16_t next = (head + 1) % ring_size;
                 if (next != rb->tail) {
                     rb->buf[head] = dma_buf[i];
                     head = next;
@@ -85,8 +79,9 @@ static void UART_ProcessDMA(UART_Channel ch) {
                 }
             }
         } else {
-            for (uint16_t i = last_pos; i < UART_RX_BUF_SIZE; i++) {
-                uint16_t next = (head + 1) % UART_RX_BUF_SIZE;
+            // Wrapped around end of DMA buffer
+            for (uint16_t i = last_pos; i < dma_size; i++) {
+                uint16_t next = (head + 1) % ring_size;
                 if (next != rb->tail) {
                     rb->buf[head] = dma_buf[i];
                     head = next;
@@ -95,7 +90,7 @@ static void UART_ProcessDMA(UART_Channel ch) {
                 }
             }
             for (uint16_t i = 0; i < dma_curr_pos; i++) {
-                uint16_t next = (head + 1) % UART_RX_BUF_SIZE;
+                uint16_t next = (head + 1) % ring_size;
                 if (next != rb->tail) {
                     rb->buf[head] = dma_buf[i];
                     head = next;
@@ -122,6 +117,7 @@ static void UART_TxKick(UART_Channel ch)
     if (huart == NULL) return;
 
     UART_TxRingBuf *tb = &uart_tbuf[ch];
+    if (!tb->buf || tb->size == 0) return;
 
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
@@ -139,7 +135,7 @@ static void UART_TxKick(UART_Channel ch)
     if (tb->head > tb->tail) {
         len = tb->head - tb->tail;
     } else {
-        len = UART_TX_BUF_SIZE - tb->tail;
+        len = tb->size - tb->tail;
     }
     
     if (len == 0) {
@@ -150,10 +146,6 @@ static void UART_TxKick(UART_Channel ch)
     tb->busy = 1;
     tb->inflight_len = len;
 
-    // Re-enable interrupts before calling HAL (which might rely on interrupts/callbacks depending on impl, though Transmit_DMA usually just sets regs)
-    // However, if we enable here, another context might intervene. 
-    // Standard practice: Keep IRQ disabled for short logic, but HAL_UART_Transmit_DMA might benefit from being outside.
-    // BUT: If we enable IRQ, 'busy' flag protects us. So it IS safe to re-enable.
     __set_PRIMASK(primask);
 
     HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(huart, &tb->buf[tb->tail], len);
@@ -167,9 +159,11 @@ static void UART_TxKick(UART_Channel ch)
 static bool UART_RingBuf_Pop(UART_Channel ch, uint8_t *out)
 {
     UART_RingBuf *rb = &uart_rbuf[ch];
+    if (!rb->buf || rb->size == 0) return false;
+
     if (rb->head == rb->tail) return false;
     *out = rb->buf[rb->tail];
-    rb->tail = (rb->tail + 1) % UART_RX_BUF_SIZE;
+    rb->tail = (rb->tail + 1) % rb->size;
     return true;
 }
 
@@ -177,19 +171,32 @@ static bool UART_RingBuf_Pop(UART_Channel ch, uint8_t *out)
  * Public API Implementation
  * ========================================================================= */
 
-void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart)
+void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart, 
+                   uint8_t *rx_dma_buf, uint16_t rx_dma_size,
+                   uint8_t *rx_ring_buf, uint16_t rx_ring_size,
+                   uint8_t *tx_ring_buf, uint16_t tx_ring_size)
 {
     if (channel >= UART_CHANNEL_MAX || huart == NULL) return;
     
     UART_Handles[channel] = huart;
 
+    // Config TX
+    uart_tbuf[channel].buf = tx_ring_buf;
+    uart_tbuf[channel].size = tx_ring_size;
     uart_tbuf[channel].head = 0;
     uart_tbuf[channel].tail = 0;
     uart_tbuf[channel].busy = 0;
     uart_tbuf[channel].inflight_len = 0;
     
+    // Config RX
+    uart_rbuf[channel].buf = rx_ring_buf;
+    uart_rbuf[channel].size = rx_ring_size;
+    uart_rbuf[channel].dma_buf = rx_dma_buf;
+    uart_rbuf[channel].dma_size = rx_dma_size;
     uart_rbuf[channel].head = 0;
     uart_rbuf[channel].tail = 0;
+    
+    // Reset Counters
     uart_rbuf[channel].overrun_cnt = 0;
     uart_rbuf[channel].tx_dropped = 0;
     uart_rbuf[channel].error_cnt = 0;
@@ -202,7 +209,9 @@ void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart)
     
     RxDMAPos[channel] = 0;
 
-    HAL_UART_Receive_DMA(huart, RxDMABuf[channel], UART_RX_BUF_SIZE);
+    if (rx_dma_buf && rx_dma_size > 0) {
+        HAL_UART_Receive_DMA(huart, rx_dma_buf, rx_dma_size);
+    }
 }
 
 void UART_SetRxCallback(UART_Channel channel, UART_RxCallback cb)
@@ -219,13 +228,15 @@ bool UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len)
     if (huart == NULL || data == NULL || len == 0) return false;
 
     UART_TxRingBuf *tb = &uart_tbuf[channel];
+    if (!tb->buf || tb->size == 0) return false;
+
     bool success = true;
 
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
 
     for (uint16_t i = 0; i < len; i++) {
-        uint16_t next = (tb->head + 1) % UART_TX_BUF_SIZE;
+        uint16_t next = (tb->head + 1) % tb->size;
         if (next == tb->tail) {
             uart_rbuf[channel].tx_dropped += (len - i);
             success = false;
@@ -252,8 +263,10 @@ uint16_t UART_Available(UART_Channel ch)
     UART_ProcessDMA(ch);
     
     UART_RingBuf *rb = &uart_rbuf[ch];
+    if (!rb->buf || rb->size == 0) return 0;
+
     if (rb->head >= rb->tail) return rb->head - rb->tail;
-    return UART_RX_BUF_SIZE - (rb->tail - rb->head);
+    return rb->size - (rb->tail - rb->head);
 }
 
 bool UART_Read(UART_Channel ch, uint8_t *out)
@@ -276,15 +289,15 @@ void UART_Flush(UART_Channel ch)
     UART_HandleTypeDef *huart = UART_GetHandle(ch);
     if (!huart) return;
 
-    // Critical Section might be needed here depending on usage
+    UART_RingBuf *rb = &uart_rbuf[ch];
     // Reset RingBuffer Pointers
-    uart_rbuf[ch].head = 0;
-    uart_rbuf[ch].tail = 0;
+    rb->head = 0;
+    rb->tail = 0;
     
-    // Sync DMA Position to current counter to avoid processing old data
-    if (huart->hdmarx) {
-        RxDMAPos[ch] = UART_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(huart->hdmarx);
-        if (RxDMAPos[ch] >= UART_RX_BUF_SIZE) RxDMAPos[ch] = 0;
+    // Sync DMA Position
+    if (huart->hdmarx && rb->dma_size > 0) {
+        RxDMAPos[ch] = rb->dma_size - __HAL_DMA_GET_COUNTER(huart->hdmarx);
+        if (RxDMAPos[ch] >= rb->dma_size) RxDMAPos[ch] = 0;
     }
 }
 
@@ -317,9 +330,12 @@ void UART_Poll(void)
                 uart_tbuf[i].inflight_len = 0;
             }
             
+            // Re-start RX DMA if it stopped (e.g. after error)
             if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
-                RxDMAPos[i] = 0;
-                HAL_UART_Receive_DMA(huart, RxDMABuf[i], UART_RX_BUF_SIZE);
+                 if (uart_rbuf[i].dma_buf && uart_rbuf[i].dma_size > 0) {
+                    RxDMAPos[i] = 0;
+                    HAL_UART_Receive_DMA(huart, uart_rbuf[i].dma_buf, uart_rbuf[i].dma_size);
+                 }
             }
         }
         
@@ -379,8 +395,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     if (ch < 0 || ch >= UART_CHANNEL_MAX) return;
 
     UART_TxRingBuf *tb = &uart_tbuf[ch];
+    if (tb->size == 0) return;
 
-    tb->tail = (tb->tail + tb->inflight_len) % UART_TX_BUF_SIZE;
+    tb->tail = (tb->tail + tb->inflight_len) % tb->size;
     tb->inflight_len = 0;
     tb->busy = 0;
 
@@ -409,8 +426,10 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     __HAL_UART_CLEAR_PEFLAG(huart);
     
     if (huart->RxState != HAL_UART_STATE_BUSY_RX) {
-        RxDMAPos[ch] = 0;
-        HAL_UART_Receive_DMA(huart, RxDMABuf[ch], UART_RX_BUF_SIZE);
+         if (rb->dma_buf && rb->dma_size > 0) {
+            RxDMAPos[ch] = 0;
+            HAL_UART_Receive_DMA(huart, rb->dma_buf, rb->dma_size);
+         }
     }
 }
 
