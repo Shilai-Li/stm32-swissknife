@@ -89,7 +89,7 @@ define_module(uart
     INCLUDES drivers/communication
 )
 
-define_module(usb_serial
+define_module(usb_cdc
     SOURCES drivers/communication/usb_cdc.c
     INCLUDES drivers/communication
 )
@@ -358,7 +358,7 @@ if (NOT DEFINED ENABLED_MODULES)
     set(TEST_SRC "")
 
     # applications
-    if (TEST_CASE STREQUAL "freertos_test")
+    if (TEST_CASE STREQUAL "freertos_tests")
         list(APPEND ENABLED_MODULES led uart) 
         set(TEST_SRC applications/freertos_test.c)
         
@@ -373,7 +373,7 @@ if (NOT DEFINED ENABLED_MODULES)
         target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEMO_ROLE=0) # 0 = SLAVE
 
     # components
-    elseif (TEST_CASE STREQUAL "shell")
+    elseif (TEST_CASE STREQUAL "shell_tests")
         list(APPEND ENABLED_MODULES letter_shell)
         set(TEST_SRC components/tests/letter-shell_tests.c)
   
@@ -408,11 +408,11 @@ if (NOT DEFINED ENABLED_MODULES)
         list(APPEND ENABLED_MODULES uart)
         set(TEST_SRC drivers/communication/uart_tests.c)
 
-    elseif (TEST_CASE STREQUAL "usb_serial")
-        list(APPEND ENABLED_MODULES usb_serial delay)
+    elseif (TEST_CASE STREQUAL "usb_cdc_tests")
+        list(APPEND ENABLED_MODULES usb_cdc)
         set(TEST_SRC drivers/communication/usb_cdc_tests.c)
 
-    elseif (TEST_CASE STREQUAL "w5500")
+    elseif (TEST_CASE STREQUAL "w5500_tests")
         list(APPEND ENABLED_MODULES w5500)
         set(TEST_SRC drivers/tests/w5500_tests.c)
 
@@ -422,86 +422,86 @@ if (NOT DEFINED ENABLED_MODULES)
     # encoder
 
     # io
-    elseif (TEST_CASE STREQUAL "buzzer")
+    elseif (TEST_CASE STREQUAL "buzzer_tests")
         list(APPEND ENABLED_MODULES buzzer uart)
         set(TEST_SRC drivers/tests/buzzer_tests.c)
-    elseif (TEST_CASE STREQUAL "led")
+    elseif (TEST_CASE STREQUAL "led_tests")
         list(APPEND ENABLED_MODULES led)
         set(TEST_SRC drivers/tests/led_tests.c)
-    elseif (TEST_CASE STREQUAL "ws2812")
+    elseif (TEST_CASE STREQUAL "ws2812_tests")
         list(APPEND ENABLED_MODULES ws2812 uart)
         set(TEST_SRC drivers/tests/ws2812_tests.c)
-    elseif (TEST_CASE STREQUAL "xpt2046")
+    elseif (TEST_CASE STREQUAL "xpt2046_tests")
         list(APPEND ENABLED_MODULES xpt2046 uart)
         set(TEST_SRC drivers/tests/xpt2046_tests.c)
     
     # motor
-    elseif (TEST_CASE STREQUAL "bldc_motor_esc_encoder")
+    elseif (TEST_CASE STREQUAL "bldc_motor_esc_encoder_tests")
         list(APPEND ENABLED_MODULES bldc_motor_esc_encoder uart delay)
         set(TEST_SRC drivers/tests/bldc_motor_esc_encoder_tests.c)
 
-    elseif (TEST_CASE STREQUAL "servo_motor")
+    elseif (TEST_CASE STREQUAL "servo_motor_tests")
         list(APPEND ENABLED_MODULES servo_motor uart)
         set(TEST_SRC drivers/tests/servo_motor_tests.c)
 
-    elseif (TEST_CASE STREQUAL "stepper_motor")
+    elseif (TEST_CASE STREQUAL "stepper_motor_tests")
         list(APPEND ENABLED_MODULES stepper_motor uart delay)
         set(TEST_SRC drivers/tests/stepper_motor_tests.c)
 
     # sensor
-    elseif (TEST_CASE STREQUAL "bh1750")
+    elseif (TEST_CASE STREQUAL "bh1750_tests")
         list(APPEND ENABLED_MODULES bh1750 uart delay)
         set(TEST_SRC drivers/tests/bh1750_tests.c)
 
-    elseif (TEST_CASE STREQUAL "dht11")
+    elseif (TEST_CASE STREQUAL "dht11_tests")
         list(APPEND ENABLED_MODULES delay dht11 uart) # UART for printing
         set(TEST_SRC drivers/tests/dht11_tests.c)
 
-    elseif (TEST_CASE STREQUAL "ds18b20")
+    elseif (TEST_CASE STREQUAL "ds18b20_tests")
         list(APPEND ENABLED_MODULES ds18b20 uart delay)
         set(TEST_SRC drivers/tests/ds18b20_tests.c)
 
-    elseif (TEST_CASE STREQUAL "hc_sr04")
+    elseif (TEST_CASE STREQUAL "hc_sr04_tests")
         list(APPEND ENABLED_MODULES hc_sr04 uart delay)
         set(TEST_SRC drivers/tests/hc_sr04_tests.c)
 
-    elseif (TEST_CASE STREQUAL "light_sensor")
+    elseif (TEST_CASE STREQUAL "light_sensor_tests")
         list(APPEND ENABLED_MODULES light_sensor uart delay)
         set(TEST_SRC drivers/tests/light_sensor_tests.c)
 
-    elseif (TEST_CASE STREQUAL "mpu6050")
+    elseif (TEST_CASE STREQUAL "mpu6050_tests")
         list(APPEND ENABLED_MODULES mpu6050 uart delay)
         set(TEST_SRC drivers/tests/mpu6050_tests.c)
 
-    elseif (TEST_CASE STREQUAL "potentiometer")
+    elseif (TEST_CASE STREQUAL "potentiometer_tests")
         list(APPEND ENABLED_MODULES potentiometer uart delay)
         set(TEST_SRC drivers/tests/potentiometer_tests.c)
 
     # storage
-    elseif (TEST_CASE STREQUAL "at24cxx")
+    elseif (TEST_CASE STREQUAL "at24cxx_tests")
         list(APPEND ENABLED_MODULES at24cxx uart delay)
         set(TEST_SRC drivers/tests/at24cxx_tests.c)
 
-    elseif (TEST_CASE STREQUAL "internal_flash")
+    elseif (TEST_CASE STREQUAL "internal_flash_tests")
         list(APPEND ENABLED_MODULES internal_flash uart)
         set(TEST_SRC drivers/tests/internal_flash_tests.c)
 
-    elseif (TEST_CASE STREQUAL "sd_card_spi")
+    elseif (TEST_CASE STREQUAL "sd_card_spi_tests")
         list(APPEND ENABLED_MODULES sd_card_spi uart delay)
         set(TEST_SRC drivers/tests/sd_card_spi_tests.c)
 
-    elseif (TEST_CASE STREQUAL "w25qxx")
+    elseif (TEST_CASE STREQUAL "w25qxx_tests")
         list(APPEND ENABLED_MODULES w25qxx uart delay)
         set(TEST_SRC drivers/tests/w25qxx_tests.c)
 
     # system
-    elseif (TEST_CASE STREQUAL "delay")
+    elseif (TEST_CASE STREQUAL "delay_tests")
         list(APPEND ENABLED_MODULES delay uart)
         set(TEST_SRC drivers/tests/delay_tests.c)
-    elseif (TEST_CASE STREQUAL "rtc")
+    elseif (TEST_CASE STREQUAL "rtc_tests")
         list(APPEND ENABLED_MODULES rtc uart)
         set(TEST_SRC drivers/tests/rtc_tests.c)
-    elseif (TEST_CASE STREQUAL "watchdog")
+    elseif (TEST_CASE STREQUAL "watchdog_tests")
         list(APPEND ENABLED_MODULES watchdog uart)
         set(TEST_SRC drivers/tests/watchdog_tests.c)
 

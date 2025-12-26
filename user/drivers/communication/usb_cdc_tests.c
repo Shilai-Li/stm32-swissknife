@@ -1,37 +1,64 @@
-/**
- * @file usb_serial_tests.c
- * @brief Test for USB Serial
- * @details This test requires USB cable connected to PC
- */
+#include "usb_cdc.h"
+#include "main.h"
 
-#include "usb_serial.h"
-#include "delay.h"
+void user_main(void)
+{
+    // 1. Initialize USB Buffer
+    USB_CDC_Init();
+    
+    // Note: USB setup itself happens in main.c (MX_USB_DEVICE_Init) which is called before user_main.
+    // However, USB enumeration takes time (host needs to install drivers).
+    // We wait a bit or just start pushing. If not connected, packets drop.
+    
+    HAL_Delay(2000); // Wait for Host to enumerate
 
-void user_main(void) {
-    // Note: USB Init is handled by MX_USB_DEVICE_Init() in main.c
-    // We just init our soft buffer
-    USB_Serial_Init();
-    
-    // Wait for enumeration? Usually takes 1-2 sec for PC to detect.
-    Delay_ms(2000);
-    
-    USB_Serial_Printf("\r\n=== USB Serial Test Start ===\r\n");
-    USB_Serial_Printf("Please type characters in your Serial Terminal...\r\n");
-    
-    while(1) {
-        // Echo Back
-        if (USB_Serial_Available() > 0) {
-            uint8_t c;
-            if (USB_Serial_Read(&c)) {
-                USB_Serial_Printf("Echo: %c\r\n", c);
-            }
+    // 2. Test SendString
+    USB_CDC_SendString("\r\n===================================\r\n");
+    USB_CDC_SendString("      USB CDC Driver Test Suite    \r\n");
+    USB_CDC_SendString("===================================\r\n");
+    USB_CDC_Printf("Cmds: [s]SendBursts [f]Flush [e]Echo \r\n");
+
+    uint32_t last_tick = 0;
+
+    while (1)
+    {
+        // No Poll() needed for USB CDC (it's interrupt driven from USB stack)
+
+        // 4. Heartbeat
+        if (HAL_GetTick() - last_tick > 1000) {
+            last_tick = HAL_GetTick();
+            USB_CDC_Printf("[Tick] System Alive: %lu ms\r\n", last_tick);
         }
-        
-        // Optional heartbeat
-        static uint32_t last = 0;
-        if (millis() - last > 1000) {
-            last = millis();
-            USB_Serial_Printf("Ping\r\n");
+
+        // 5. Check Reception
+        if (USB_CDC_Available())
+        {
+            uint8_t cmd;
+            if (USB_CDC_Read(&cmd)) 
+            {
+                switch (cmd) 
+                {
+                    case 's': // Test Burst Send
+                        USB_CDC_SendString("[Test] Sending Burst 1...\r\n");
+                        USB_CDC_SendString("[Test] Sending Burst 2...\r\n");
+                        USB_CDC_SendString("[Test] Sending Burst 3...\r\n");
+                        break;
+                    
+                    case 'f': // Test Flush
+                        USB_CDC_Printf("[Test] Flushing Rx Buffer... \r\n");
+                        USB_CDC_Flush();
+                        break;
+
+                    case '\r':
+                    case '\n':
+                        // Ignore newlines
+                        break;
+
+                    default: // Echo back
+                        USB_CDC_Printf("Echo: %c (0x%02X)\r\n", cmd, cmd);
+                        break;
+                }
+            }
         }
     }
 }
