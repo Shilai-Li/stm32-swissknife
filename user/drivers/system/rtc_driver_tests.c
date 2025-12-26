@@ -1,3 +1,8 @@
+/**
+ * @file rtc_driver_tests.c
+ * @brief Comprehensive Test Suite for RTC Driver
+ */
+
 #include "rtc_driver.h"
 #include "uart.h"
 #include "usb_cdc.h"
@@ -33,7 +38,22 @@ static void TestAlarmCallback(void) {
     callback_triggered = true;
 }
 
+// Helper to delay while feeding watchdog
+static void Safe_Delay(uint32_t ms) {
+    uint32_t start = HAL_GetTick();
+    while ((HAL_GetTick() - start) < ms) {
+        #ifdef HAL_IWDG_MODULE_ENABLED
+        extern IWDG_HandleTypeDef hiwdg;
+        HAL_IWDG_Refresh(&hiwdg);
+        #endif
+        UART_Poll(); // Keep UART alive too
+    }
+}
+
 void app_main(void) {
+    // Feed watchdog immediately to prevent reset during init
+    Safe_Delay(10);
+    
     // Initialize buffers for UART
     static uint8_t rx_dma_buf[64];
     static uint8_t rx_ring_buf[256];
@@ -41,6 +61,15 @@ void app_main(void) {
     
     // Register UART
     extern UART_HandleTypeDef huart2;
+    
+    if (huart2.hdmarx == NULL) {
+        const char *msg = "\r\n[WARNING] USART2 RX DMA Not Configured! UART Input won't work.\r\n"
+                          "Please add USART2_RX in CubeMX -> Connectivity -> USART2 -> DMA Settings.\r\n";
+        USB_CDC_Send((uint8_t*)msg, strlen(msg));
+        // Try blocking send in case driver TX also fails without DMA
+        HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 100);
+    }
+    
     UART_Register(CH_DEBUG, &huart2, 
                   rx_dma_buf, sizeof(rx_dma_buf),
                   rx_ring_buf, sizeof(rx_ring_buf),
@@ -49,7 +78,8 @@ void app_main(void) {
     // Initialize USB CDC
     USB_CDC_Init();
     
-    HAL_Delay(100); // Wait for USB enumeration
+    // Wait for USB enumeration (safe)
+    Safe_Delay(100); // Wait for USB enumeration
     
     Test_Printf("\r\n===================================\r\n");
     Test_Printf("     RTC Driver Test Suite       \r\n");
@@ -67,7 +97,7 @@ void app_main(void) {
         Test_Printf("RTC Status: NOT READY [FAIL]\r\n");
         Test_Printf("ERROR: RTC not initialized. Check CubeMX config!\r\n");
         Test_Printf("=== Test FAILED ===\r\n");
-        while(1) { HAL_Delay(1000); }
+        while(1) { Safe_Delay(1000); }
     }
     
     // ========================================================================
@@ -77,7 +107,6 @@ void app_main(void) {
     
     // Set to 2025-01-01 00:00:00 UTC (Unix: 1735689600)
     uint32_t test_timestamp = 1735689600;
-    char time_str[20];
     
     Test_Printf("Setting Time: 2025-01-01 00:00:00 (Unix: %u)\r\n", test_timestamp);
     
@@ -86,7 +115,7 @@ void app_main(void) {
     } else {
         Test_Printf("Time Set: FAILED [FAIL]\r\n");
         Test_Printf("=== Test FAILED ===\r\n");
-        while(1) { HAL_Delay(1000); }
+        while(1) { Safe_Delay(1000); }
     }
     
     // ========================================================================
@@ -97,10 +126,10 @@ void app_main(void) {
     
     uint32_t last_time = test_timestamp;
     bool all_passed = true;
+    char time_str[20];
     
     for (int i = 1; i <= TEST_ITERATIONS; i++) {
-        HAL_Delay(1000);
-        UART_Poll(); // Keep UART alive
+        Safe_Delay(1000);
         
         uint32_t now = RTC_GetTimeUnix();
         RTC_GetTimeString(time_str);
@@ -162,6 +191,12 @@ void app_main(void) {
     Test_Printf("Press any key to see current time.\r\n\r\n");
     
     while (1) {
+        // Feed watchdog constantly
+        #ifdef HAL_IWDG_MODULE_ENABLED
+        extern IWDG_HandleTypeDef hiwdg;
+        HAL_IWDG_Refresh(&hiwdg);
+        #endif
+        
         UART_Poll();
         
         uint8_t cmd;
@@ -170,7 +205,5 @@ void app_main(void) {
             RTC_GetTimeString(time_str);
             Test_Printf("[Live] Unix: %u | Time: %s\r\n", now, time_str);
         }
-        
-        HAL_Delay(100);
     }
 }
