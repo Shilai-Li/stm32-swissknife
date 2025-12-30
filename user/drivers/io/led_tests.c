@@ -1,10 +1,10 @@
-#include "io/led.h"
+#include "led.h"
 
 #include "main.h"
 
 void app_main(void)
 {
-    LED_Register(LED_1, GPIOB, GPIO_PIN_2, LED_ACTIVE_LOW);
+    LED_Register(LED_1, GPIOB, GPIO_PIN_2, LED_ACTIVE_HIGH);
 
     while (1)
     {
