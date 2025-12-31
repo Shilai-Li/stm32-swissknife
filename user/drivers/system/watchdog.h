@@ -1,23 +1,3 @@
-/**
- * @file watchdog.h
- * @brief Independent Watchdog (IWDG) Driver
- * 
- * =================================================================================
- *                       >>> INTEGRATION GUIDE <<<
- * =================================================================================
- * 1. CubeMX Config (System Core -> IWDG):
- *    - Activated: Checked
- *    - Parameters: You can leave defaults or set them.
- *      * THIS DRIVER OVERWRITES THEM!
- *      * The Watchdog_Init() function will re-calculate and re-init registers
- *        to match your requested timeout_ms.
- * 
- * 2. Note:
- *    Once LSI is enabled and IWDG started, it CANNOT be stopped until reset.
- *    Debug mode might pause it if DBGMCU config allows.
- * =================================================================================
- */
-
 #ifndef WATCHDOG_H
 #define WATCHDOG_H
 
@@ -28,25 +8,18 @@ extern "C" {
 #include "main.h"
 #include <stdbool.h>
 
-/**
- * @brief  Initialize the Independent Watchdog (IWDG)
- * @note   Once enabled, it cannot be disabled until reset!
- * @param  timeout_ms Time in milliseconds before reset (Approximate).
- *                    Max timeout is usually around 26-32 seconds (depending on LSI).
- * @return true if successful, false if timeout is out of range.
- */
+/* ============================================================================
+ * Watchdog Driver - Supports both IWDG and WWDG
+ * ========================================================================= */
+
+#if defined(HAL_IWDG_MODULE_ENABLED)
+void Watchdog_Register(IWDG_HandleTypeDef *hiwdg);
+#elif defined(HAL_WWDG_MODULE_ENABLED)
+void Watchdog_Register(WWDG_HandleTypeDef *hwwdg);
+#endif
+
 bool Watchdog_Init(uint32_t timeout_ms);
-
-/**
- * @brief  Feed the Dog (Reload Counter)
- * @note   Call this periodically to prevent reset.
- */
 void Watchdog_Feed(void);
-
-/**
- * @brief  Check if the system was reset by the Watchdog
- * @return true if the last reset was caused by IWDG
- */
 bool Watchdog_WasResetByDog(void);
 
 #ifdef __cplusplus

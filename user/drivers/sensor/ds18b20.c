@@ -1,13 +1,7 @@
-/**
- * @file ds18b20.c
- * @brief DS18B20 Driver Implementation
- */
-
 #include "ds18b20.h"
-#include "delay.h" // Must provide Delay_us()
+#include "delay.h" 
 
 /* 1-Wire Timing Constants */
-// Adjust these if cable is very long or capacitance is high
 #define OW_RESET_PULSE      480
 #define OW_RESET_WAIT       70
 #define OW_PRESENCE_WAIT    410
@@ -22,21 +16,21 @@
 #define OW_READ_SAMPLE      9
 #define OW_READ_RECOVER     55
 
+static void DS18B20_HandleError(DS18B20_Handle_t *dev) {
+    if (dev) {
+        dev->error_cnt++;
+        if (dev->error_cb) {
+            dev->error_cb(dev);
+        }
+    }
+}
+
 /* GPIO Helper Functions */
 
 // Helper: Set Pin as Output
 static void Mode_Output(DS18B20_Handle_t *h) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = h->pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP; // Open Drain usually better but PP works if strictly timing controlled
-    // Actually, OneWire requires Open Drain usually with Pullup.
-    // If using internal pullup or external, Open Drain is safest. 
-    // BUT, standard bit-bang often switches direction.
-    // Let's use Open Drain (OD) if external pullup exists.
-    // If not, Push Pull + switching to Input is common logic.
-    // To be safe and generic w/o external resistor assumptions, we switch mode.
-    
-    // Switch to Output Push Pull
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(h->port, &GPIO_InitStruct);
@@ -46,17 +40,13 @@ static void Mode_Output(DS18B20_Handle_t *h) {
 static void Mode_Input(DS18B20_Handle_t *h) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = h->pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT; // Floating if external pullup, or PullUp
-    GPIO_InitStruct.Pull = GPIO_PULLUP;     // Enable internal pullup just in case
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT; 
+    GPIO_InitStruct.Pull = GPIO_PULLUP;     
     HAL_GPIO_Init(h->port, &GPIO_InitStruct);
 }
 
 static void Pin_Low(DS18B20_Handle_t *h) {
     HAL_GPIO_WritePin(h->port, h->pin, GPIO_PIN_RESET);
-}
-
-static void Pin_High(DS18B20_Handle_t *h) {
-    HAL_GPIO_WritePin(h->port, h->pin, GPIO_PIN_SET);
 }
 
 static uint8_t Pin_Read(DS18B20_Handle_t *h) {
@@ -66,20 +56,28 @@ static uint8_t Pin_Read(DS18B20_Handle_t *h) {
 /* 1-Wire Primitives */
 
 static bool OW_Reset(DS18B20_Handle_t *h) {
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
     Mode_Output(h);
     Pin_Low(h);
     Delay_us(OW_RESET_PULSE);
     
-    Mode_Input(h); // Release line (Pull-up pulls high)
+    Mode_Input(h); // Release line
     Delay_us(OW_RESET_WAIT);
     
     uint8_t presence = Pin_Read(h); // Should be Low if slave present
     Delay_us(OW_PRESENCE_WAIT);
     
+    __set_PRIMASK(primask);
+    
     return (presence == 0);
 }
 
 static void OW_WriteBit(DS18B20_Handle_t *h, uint8_t bit) {
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    
     Mode_Output(h);
     if (bit) {
         // Write 1
@@ -94,10 +92,16 @@ static void OW_WriteBit(DS18B20_Handle_t *h, uint8_t bit) {
         Mode_Input(h); // Release
         Delay_us(OW_WRITE_0_HIGH);
     }
+    
+    __set_PRIMASK(primask);
 }
 
 static uint8_t OW_ReadBit(DS18B20_Handle_t *h) {
     uint8_t bit = 0;
+    
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    
     Mode_Output(h);
     Pin_Low(h);
     Delay_us(OW_READ_LOW);
@@ -106,6 +110,8 @@ static uint8_t OW_ReadBit(DS18B20_Handle_t *h) {
     Delay_us(OW_READ_SAMPLE);
     bit = Pin_Read(h);
     Delay_us(OW_READ_RECOVER);
+    
+    __set_PRIMASK(primask);
     
     return bit;
 }
@@ -130,28 +136,42 @@ static uint8_t OW_ReadByte(DS18B20_Handle_t *h) {
 /* Public API */
 
 void DS18B20_Init(DS18B20_Handle_t *h, GPIO_TypeDef *port, uint16_t pin) {
+    if (!h) return;
     h->port = port;
     h->pin = pin;
     h->last_temp = 0.0f;
-    h->error = false;
+    
+    h->error_cnt = 0;
+    h->success_cnt = 0;
+    h->crc_error_cnt = 0;
+    h->error_cb = NULL;
     
     // Ensure high idle
     Mode_Input(h); 
 }
 
+void DS18B20_SetErrorCallback(DS18B20_Handle_t *h, DS18B20_ErrorCallback cb) {
+    if (h) {
+        h->error_cb = cb;
+    }
+}
+
 void DS18B20_StartConversion(DS18B20_Handle_t *h) {
+    if (!h) return;
+    
     if (!OW_Reset(h)) {
-        h->error = true;
+        DS18B20_HandleError(h);
         return;
     }
-    h->error = false;
     OW_WriteByte(h, 0xCC); // Skip ROM
     OW_WriteByte(h, 0x44); // Convert T
 }
 
 float DS18B20_ReadTemp(DS18B20_Handle_t *h) {
+    if (!h) return -999.0f;
+    
     if (!OW_Reset(h)) {
-        h->error = true;
+        DS18B20_HandleError(h);
         return -999.0f;
     }
     
@@ -168,15 +188,16 @@ float DS18B20_ReadTemp(DS18B20_Handle_t *h) {
     float temp = (float)temp_raw * 0.0625f;
     h->last_temp = temp;
     
+    h->success_cnt++;
+    
     return temp;
 }
 
 float DS18B20_ReadTempBlocked(DS18B20_Handle_t *h) {
     DS18B20_StartConversion(h);
-    if (h->error) return -999.0f;
     
     // Max conv time 750ms
-    Delay_ms(750);
+    HAL_Delay(750); // Blocking ms delay
     
     return DS18B20_ReadTemp(h);
 }

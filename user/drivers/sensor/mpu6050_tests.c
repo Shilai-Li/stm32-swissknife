@@ -4,6 +4,7 @@
  */
 
 #include "mpu6050.h"
+#include "usart.h"
 #include "uart.h"
 #include <stdlib.h>
 
@@ -12,9 +13,21 @@
  */
 extern I2C_HandleTypeDef hi2c1;
 
+extern UART_HandleTypeDef huart2;
+
+// UART Buffers
+static uint8_t uart_rx_dma[64];
+static uint8_t uart_rx_buf[256];
+static uint8_t uart_tx_buf[512];
+
 void app_main(void)
 {
-    UART_Init();
+    // Register UART for Debug Printf (channel 0)
+    UART_Register(0, &huart2, 
+                  uart_rx_dma, sizeof(uart_rx_dma),
+                  uart_rx_buf, sizeof(uart_rx_buf),
+                  uart_tx_buf, sizeof(uart_tx_buf));
+
     UART_Debug_Printf("MPU6050 test start\r\n");
 
     MPU6050_Handle_t imu;

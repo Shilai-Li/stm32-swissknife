@@ -16,7 +16,7 @@ extern "C" {
 #include "moving_average.h"
 
 typedef struct {
-    ADC_HandleTypeDef *hadc;
+    void *hadc; // Generic pointer to Hardware ADC Handle
     /* User responsible for channel selection logic if polling */
     
     uint16_t deadzone_low;  // e.g. 50 (Values < 50 become 0)
@@ -24,22 +24,38 @@ typedef struct {
     bool     inverse;       // Reverse direction
 } Pot_Config_t;
 
-typedef struct {
+/* Forward callback declaration */
+typedef struct Pot_Handle_s Pot_Handle_t;
+typedef void (*Pot_ErrorCallback)(Pot_Handle_t *dev);
+
+struct Pot_Handle_s {
     Pot_Config_t config;
     
     /* Composition: Algorithm */
     MovingAverage_Handle_t filter;
-    uint16_t               filter_buffer[8]; // Smaller window (8) for faster response than light sensor
+    uint16_t               filter_buffer[8]; // Smaller window (8) for faster response
     
     /* State */
     uint16_t last_raw;
     uint16_t last_filtered;
-} Pot_Handle_t;
+    
+    /* Stats */
+    volatile uint32_t error_cnt;
+    volatile uint32_t success_cnt;
+    
+    /* Callback */
+    Pot_ErrorCallback error_cb;
+};
 
 /**
  * @brief Initialize Potentiometer
  */
 void Pot_Init(Pot_Handle_t *handle, const Pot_Config_t *config);
+
+/**
+ * @brief Set Error Callback
+ */
+void Pot_SetErrorCallback(Pot_Handle_t *handle, Pot_ErrorCallback cb);
 
 /**
  * @brief Update and Read

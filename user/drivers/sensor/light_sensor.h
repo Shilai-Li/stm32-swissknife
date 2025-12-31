@@ -1,9 +1,3 @@
-/**
- * @file light_sensor.h
- * @brief Light Sensor (LDR/Photocell) Driver
- * @details Uses ADC + Moving Average Filter
- */
-
 #ifndef LIGHT_SENSOR_H
 #define LIGHT_SENSOR_H
 
@@ -19,7 +13,7 @@ extern "C" {
  * @brief Light Sensor Configuration
  */
 typedef struct {
-    ADC_HandleTypeDef *hadc;
+    void *hadc; // Generic pointer to Hardware ADC Handle (cast to ADC_HandleTypeDef* in implementation)
     /* 
        Note: The user code is responsible for configuring ADC Rank/Channel 
        or using a wrapper that handles channel switching if polling.
@@ -33,18 +27,31 @@ typedef struct {
     bool inverse_logic;        // If true, Low ADC = Light (depends on circuit: Pull-up vs Pull-down)
 } LightSensor_Config_t;
 
-typedef struct {
+/* Forward declaration */
+typedef struct LightSensor_Handle_s LightSensor_Handle_t;
+typedef void (*LightSensor_ErrorCallback)(LightSensor_Handle_t *dev);
+
+struct LightSensor_Handle_s {
     LightSensor_Config_t config;
     
     /* Composition: Algorithm */
     MovingAverage_Handle_t filter;
-    uint16_t               filter_buffer[16]; // Fixed window size 16 for simplicity in this composition
+    uint16_t               filter_buffer[16]; // Fixed window size 16
     
     /* State */
     bool is_dark;
     uint16_t last_raw;
     uint16_t last_filtered;
-} LightSensor_Handle_t;
+    
+    /* Stats */
+    volatile uint32_t error_cnt;
+    volatile uint32_t success_cnt;
+    
+    /* Callback */
+    LightSensor_ErrorCallback error_cb;
+};
+
+void LightSensor_SetErrorCallback(LightSensor_Handle_t *handle, LightSensor_ErrorCallback cb);
 
 /**
  * @brief Initialize Light Sensor

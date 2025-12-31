@@ -10,11 +10,24 @@
 #define BH1750_ADDR_L  0x46
 #define BH1750_ADDR_H  0xB8
 
-typedef struct {
+/* Forward callback declaration */
+typedef struct BH1750_Handle_s BH1750_Handle_t;
+typedef void (*BH1750_ErrorCallback)(BH1750_Handle_t *dev);
+
+struct BH1750_Handle_s {
     Soft_I2C_HandleTypeDef *i2c;
     uint8_t address; // 8-bit write address
     uint8_t mode;
-} BH1750_Handle_t;
+    
+    /* Stats */
+    volatile uint32_t error_cnt;
+    volatile uint32_t success_cnt;
+    
+    /* Callbacks */
+    BH1750_ErrorCallback error_cb;
+};
+
+void BH1750_SetErrorCallback(BH1750_Handle_t *dev, BH1750_ErrorCallback cb);
 
 /**
  * @brief Initialize BH1750

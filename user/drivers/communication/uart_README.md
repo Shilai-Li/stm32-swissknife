@@ -38,26 +38,46 @@ In your application header or `main.c`:
 ```
 
 ### 2. Register Handles (Dependency Injection)
-In your initialization code (e.g., `user_main` or after `MX_USARTx_UART_Init`):
+In your initialization code (e.g., `app_main` or after `MX_USARTx_UART_Init`):
 
 ```c
 #include "uart.h"
-#include "usart.h" // Provides huart2, huart3
+#include "usart.h" // Provides huart2
+
+// Define buffers relative to your RAM budget
+static uint8_t debug_rx_dma[64];
+static uint8_t debug_rx_ring[256];
+static uint8_t debug_tx_ring[512];
 
 void app_main(void) {
-    // Inject hardware handles into logic channels
+    // Inject hardware handles AND memory buffers into logic channels
     // Ensure MX_USART2_UART_Init() and MX_DMA_Init() have been called!
-    UART_Register(UART_DEBUG, &huart2);
-    // UART_Register(UART_SENSOR, &huart3);
+    
+    UART_Register(UART_DEBUG, &huart2,
+                  debug_rx_dma, sizeof(debug_rx_dma),
+                  debug_rx_ring, sizeof(debug_rx_ring),
+                  debug_tx_ring, sizeof(debug_tx_ring));
 
     UART_SendString(UART_DEBUG, "System Booted.\r\n");
 }
 ```
 
+### 2.5 Register Callback (Optional, for RTOS)
+```c
+void MyRxCallback(UART_Channel ch) {
+    // Signal your RTOS task/semaphore here
+}
+
+UART_SetRxCallback(UART_DEBUG, MyRxCallback);
+```
+
 ### 3. Sending Data
 ```c
 uint8_t data[] = {0x01, 0x02, 0x03};
-UART_Send(UART_DEBUG, data, 3);
+// Returns true if buffered successfully, false if buffer full
+if (!UART_Send(UART_DEBUG, data, 3)) {
+    // Handle overflow
+}
 UART_SendString(UART_DEBUG, "Hello World\n");
 ```
 
@@ -119,3 +139,10 @@ Cmds: [s]SendBursts [f]Flush [b]BusyCheck [e]Errors [r]BlockRx
 [Tick] System Alive: 1000 ms
 [Tick] System Alive: 2000 ms
 ```
+## Release Notes (2025-12)
+### Enhancements
+- **Dynamic Buffers**: Replaced static macros with runtime buffer configuration (API Change).
+- **Thread Safety**: Added critical sections to `UART_ProcessDMA` and `UART_TxKick`.
+- **Callback Support**: Added `UART_SetRxCallback` for RTOS notification.
+- **Error Handling**: `UART_Send` returns `bool` (false = buffer full).
+- **USB CDC**: Fixed circular dependency in `usbd_cdc_if.c`.

@@ -44,13 +44,7 @@ typedef uint8_t UART_Channel;
 /* ============================================================================
  * UART Configuration
  * ========================================================================= */
-#ifndef UART_RX_BUF_SIZE
-#define UART_RX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
-#endif
-
-#ifndef UART_TX_BUF_SIZE
-#define UART_TX_BUF_SIZE  128  // Reduced to save RAM (was 2048)
-#endif
+/* Buffer sizes are now dynamic, configured in UART_Register */
 
 // UART_DEBUG_CHANNEL should be defined by user if they use UART_Debug_Printf, 
 // usually as a macro in main.h or here if hardcoded. Defaulting to 0.
@@ -58,11 +52,14 @@ typedef uint8_t UART_Channel;
 #define UART_DEBUG_CHANNEL 0
 #endif
 
+
 typedef struct {
-    uint8_t buf[UART_RX_BUF_SIZE];
+    uint8_t *buf;
+    uint16_t size;
+    uint8_t *dma_buf;      // Pointer to DMA buffer
+    uint16_t dma_size;     // Size of DMA buffer
     volatile uint16_t head;
     volatile uint16_t tail;
-    uint8_t rx_byte;
     volatile uint32_t overrun_cnt;  // RX Software Buffer Overflow
     volatile uint32_t tx_dropped;   // TX Buffer Overflow (Send failed)
     volatile uint32_t error_cnt;    // Total Hardware Errors
@@ -74,20 +71,60 @@ typedef struct {
     volatile uint8_t error_flag;    // Error flag for recovery in main loop
 } UART_RingBuf;
 
+typedef struct {
+    uint8_t *buf;
+    uint16_t size;
+    volatile uint16_t head;
+    volatile uint16_t tail;
+    volatile uint8_t busy;
+    uint16_t inflight_len;
+} UART_TxRingBuf;
+
 /* ============================================================================
  * UART Public API
  * ========================================================================= */
 
-void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart);
-void UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
+// Callback types
+typedef void (*UART_RxCallback)(UART_Channel channel);
+typedef void (*UART_TxCallback)(UART_Channel channel);
+typedef void (*UART_ErrorCallback)(UART_Channel channel, uint32_t error_code);
+
+// Registration
+void UART_Register(UART_Channel channel, UART_HandleTypeDef *huart, 
+                   uint8_t *rx_dma_buf, uint16_t rx_dma_size,
+                   uint8_t *rx_ring_buf, uint16_t rx_ring_size,
+                   uint8_t *tx_ring_buf, uint16_t tx_ring_size);
+
+// Callback Configuration
+void UART_SetRxCallback(UART_Channel channel, UART_RxCallback cb);
+void UART_SetTxCallback(UART_Channel channel, UART_TxCallback cb);
+void UART_SetErrorCallback(UART_Channel channel, UART_ErrorCallback cb);
+
+// Transmission
+bool UART_Send(UART_Channel channel, const uint8_t *data, uint16_t len);
 void UART_SendString(UART_Channel channel, const char *str);
+
+// Reception
 uint16_t UART_Available(UART_Channel channel);
 bool UART_Read(UART_Channel channel, uint8_t *out);
+uint16_t UART_ReadBytes(UART_Channel channel, uint8_t *buf, uint16_t max_len);
 bool UART_Receive(UART_Channel channel, uint8_t *out, uint32_t timeout_ms);
+
+// Control
 void UART_Flush(UART_Channel channel);
+void UART_AbortTx(UART_Channel channel);
+void UART_AbortRx(UART_Channel channel);
+
+// Status
 bool UART_IsTxBusy(UART_Channel channel);
-uint32_t UART_GetRxOverrunCount(UART_Channel channel);
+uint16_t UART_GetTxPending(UART_Channel channel);
+uint16_t UART_GetTxFree(UART_Channel channel);
+
+// Polling (Required for DMA processing)
 void UART_Poll(void);
+
+// Error Statistics
+uint32_t UART_GetRxOverrunCount(UART_Channel channel);
 uint32_t UART_GetTxDropCount(UART_Channel channel);
 uint32_t UART_GetErrorCount(UART_Channel channel);
 uint32_t UART_GetPEErrorCount(UART_Channel channel);
@@ -95,6 +132,8 @@ uint32_t UART_GetNEErrorCount(UART_Channel channel);
 uint32_t UART_GetFEErrorCount(UART_Channel channel);
 uint32_t UART_GetOREErrorCount(UART_Channel channel);
 uint32_t UART_GetDMAErrorCount(UART_Channel channel);
+
+// Debug
 void UART_Debug_Printf(const char *fmt, ...);
 
 #ifdef __cplusplus

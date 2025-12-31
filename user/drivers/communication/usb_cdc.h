@@ -20,7 +20,7 @@ bool USB_CDC_Read(uint8_t *byte);
 bool USB_CDC_Receive(uint8_t *out, uint32_t timeout_ms);
 void USB_CDC_Flush(void);
 
-void USB_CDC_Send(const uint8_t *data, uint32_t len);
+bool USB_CDC_Send(const uint8_t *data, uint32_t len);
 void USB_CDC_SendString(const char *str);
 void USB_CDC_Printf(const char *fmt, ...);
 

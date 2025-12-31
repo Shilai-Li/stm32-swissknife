@@ -1,9 +1,20 @@
-/**
- * @file light_sensor.c
- * @brief Light Sensor Driver Implementation
- */
-
 #include "light_sensor.h"
+#include "stm32f4xx_hal.h"
+
+static void LightSensor_HandleError(LightSensor_Handle_t *h) {
+    if (h) {
+        h->error_cnt++;
+        if (h->error_cb) {
+            h->error_cb(h);
+        }
+    }
+}
+
+void LightSensor_SetErrorCallback(LightSensor_Handle_t *handle, LightSensor_ErrorCallback cb) {
+    if (handle) {
+        handle->error_cb = cb;
+    }
+}
 
 void LightSensor_Init(LightSensor_Handle_t *h, const LightSensor_Config_t *config) {
     if (!h || !config) return;
@@ -11,26 +22,34 @@ void LightSensor_Init(LightSensor_Handle_t *h, const LightSensor_Config_t *confi
     h->config = *config;
     
     // Init Filter
-    // We used a fixed internal buffer in struct for convenience
     MovingAverage_Init(&h->filter, h->filter_buffer, 16);
     
     h->is_dark = false;
     h->last_raw = 0;
     h->last_filtered = 0;
+    
+    h->error_cnt = 0;
+    h->success_cnt = 0;
+    h->error_cb = NULL;
 }
 
 uint16_t LightSensor_Update(LightSensor_Handle_t *h) {
     if (!h || !h->config.hadc) return 0;
     
+    ADC_HandleTypeDef *hadc = (ADC_HandleTypeDef*)h->config.hadc;
+    
     // 1. Read Hardware
-    // Assuming Polling for simplicity, or user calls this after DMA ISR
-    // If strict polling:
-    HAL_ADC_Start(h->config.hadc);
-    HAL_ADC_PollForConversion(h->config.hadc, 10);
-    uint16_t raw = (uint16_t)HAL_ADC_GetValue(h->config.hadc);
+    HAL_ADC_Start(hadc);
     
+    HAL_StatusTypeDef status = HAL_ADC_PollForConversion(hadc, 10);
+    if (status != HAL_OK) {
+        LightSensor_HandleError(h);
+        return h->last_filtered;
+    }
+    
+    uint16_t raw = (uint16_t)HAL_ADC_GetValue(hadc);
     h->last_raw = raw;
-    
+    h->success_cnt++;
     // 2. Apply Algorithm
     uint16_t filtered = MovingAverage_Update(&h->filter, raw);
     h->last_filtered = filtered;
